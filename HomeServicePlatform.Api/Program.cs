@@ -1,3 +1,5 @@
+﻿
+using HomeServicePlatform.Api.Hubs;
 
 namespace HomeServicePlatform.Api
 {
@@ -14,6 +16,9 @@ namespace HomeServicePlatform.Api
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            // Thêm dịch vụ SignalR vào hệ thống
+            builder.Services.AddSignalR();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -29,6 +34,9 @@ namespace HomeServicePlatform.Api
 
 
             app.MapControllers();
+
+            // Đặt đường dẫn để Client kết nối tới là /booking-hub
+            app.MapHub<BookingHub>("/booking-hub");
 
             app.Run();
         }
