@@ -1,5 +1,7 @@
 ﻿
 using HomeServicePlatform.Api.Hubs;
+using HomeServicePlatform.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Api
 {
@@ -8,6 +10,13 @@ namespace HomeServicePlatform.Api
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            // Kết nối DB
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+            // Đăng ký DbContext với tùy chọn PostgreSQL + PostGIS
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseNpgsql(connectionString, o => o.UseNetTopologySuite()));
 
             // Add services to the container.
 
