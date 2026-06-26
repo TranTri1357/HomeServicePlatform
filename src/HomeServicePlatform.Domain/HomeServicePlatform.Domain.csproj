@@ -7,8 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Modules\Booking\Entities\" />
-    <Folder Include="Modules\Booking\ValueObjects\" />
+    <Folder Include="Modules\Bookings\ValueObjects\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.5.0" />
   </ItemGroup>
 
 </Project>
