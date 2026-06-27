@@ -26,6 +26,9 @@ namespace HomeServicePlatform.Infrastructure
             // 3. Đăng ký các Repository đặc thù khác nếu có (Ví dụ: BookingRepository...)
             // services.AddScoped<IBookingRepository, BookingRepository>();
 
+            // Đăng ký Unit of Work
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+
             // 3. Đăng ký Generic Repository
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
