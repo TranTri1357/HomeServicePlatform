@@ -1,5 +1,8 @@
 ﻿
 using HomeServicePlatform.Api.Hubs;
+using HomeServicePlatform.Api.Middlewares;
+using HomeServicePlatform.Application;
+using HomeServicePlatform.Infrastructure;
 using HomeServicePlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,25 +13,17 @@ namespace HomeServicePlatform.Api
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-
-            // Kết nối DB
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-            // Đăng ký DbContext với tùy chọn PostgreSQL + PostGIS
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseNpgsql(connectionString, o => o.UseNetTopologySuite()));
-
-            // Add services to the container.
-
-            builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-
-            // Thêm dịch vụ SignalR vào hệ thống
-            builder.Services.AddSignalR();
+            //Đăng kí cấu hình API
+            builder.Services.AddApiServices();
+            //Đăng kí cấu hình Application
+            builder.Services.AddApplicationServices();
+            // Đăng kí cấu hình Infrastructure
+            builder.Services.AddInfrastructureServices(builder.Configuration);
 
             var app = builder.Build();
+
+            // KÍCH HOẠT CÁI LƯỚI BẮT LỖI TOÀN HỆ THỐNG
+            app.UseMiddleware<GlobalExceptionMiddleware>();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
