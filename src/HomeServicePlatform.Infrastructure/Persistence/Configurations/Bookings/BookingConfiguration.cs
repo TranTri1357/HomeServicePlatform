@@ -1,4 +1,5 @@
 ﻿using HomeServicePlatform.Domain.Modules.Bookings.Entities;
+using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
@@ -19,7 +20,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Bookings
             entity.Property(e => e.BookingId).HasColumnName("booking_id").UseIdentityByDefaultColumn();
 
             entity.Property(e => e.CustomerId).HasColumnName("customer_id");
-            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue((short)0);
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue(BookingStatus.Pending); ;
             entity.Property(e => e.SubtotalAmount).HasColumnName("subtotal_amount").HasColumnType("decimal(18,2)");
             entity.Property(e => e.DiscountAmount).HasColumnName("discount_amount").HasColumnType("decimal(18,2)").HasDefaultValue(0m);
             entity.Property(e => e.FinalAmount).HasColumnName("final_amount").HasColumnType("decimal(18,2)");
