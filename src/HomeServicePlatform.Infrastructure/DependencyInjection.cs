@@ -23,6 +23,9 @@ namespace HomeServicePlatform.Infrastructure
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseNpgsql(connectionString, o => o.UseNetTopologySuite()));
 
+            services.AddScoped<IApplicationDbContext>(provider =>
+                provider.GetRequiredService<ApplicationDbContext>());
+
             // 3. Đăng ký các Repository đặc thù khác nếu có (Ví dụ: BookingRepository...)
             // services.AddScoped<IBookingRepository, BookingRepository>();
 
