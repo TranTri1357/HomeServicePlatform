@@ -15,7 +15,7 @@ namespace HomeServicePlatform.Domain.Modules.Services.Entities
         public bool? IsActive { get; set; } = true;
         public bool IsDeleted { get; set; } = false;
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-        public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? UpdatedAt { get; set; }
 
         public virtual ICollection<Service> Services { get; set; } = new List<Service>();
     }

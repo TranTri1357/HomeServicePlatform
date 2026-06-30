@@ -17,7 +17,7 @@ namespace HomeServicePlatform.Domain.Modules.Services.Entities
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; } = false;
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-        public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? UpdatedAt { get; set; }
 
         public virtual Category Category { get; set; } = null!;
         public virtual ICollection<TaskerService> TaskerServices { get; set; } = new List<TaskerService>();

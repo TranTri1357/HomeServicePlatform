@@ -15,6 +15,9 @@ namespace HomeServicePlatform.Domain.Modules.Identity.Entities
         public short Type { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+        public bool IsRevoked { get; set; } = false;
+        public DateTimeOffset? RevokedAt { get; set; }
+
         public virtual User User { get; set; } = null!;
     }
 }
