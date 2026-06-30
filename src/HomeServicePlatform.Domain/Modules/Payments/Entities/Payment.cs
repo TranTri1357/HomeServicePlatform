@@ -17,6 +17,7 @@ namespace HomeServicePlatform.Domain.Modules.Payments.Entities
         public string? TransactionCode { get; set; }
         public DateTimeOffset? PaidAt { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? UpdatedAt { get; set; }
         public int RowVersion { get; set; } = 1;
 
         public virtual Booking Booking { get; set; } = null!;

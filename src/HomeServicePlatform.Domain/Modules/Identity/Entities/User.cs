@@ -20,7 +20,7 @@ namespace HomeServicePlatform.Domain.Modules.Identity.Entities
         public short Status { get; set; } = 1;
         public DateTimeOffset? LastLoginAt { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-        public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? UpdatedAt { get; set; }
         public int RowVersion { get; set; } = 1;
         public bool IsDeleted { get; set; } = false;
 

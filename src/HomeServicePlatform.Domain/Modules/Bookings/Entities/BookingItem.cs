@@ -22,6 +22,8 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
         public decimal TotalPrice { get; set; }
         public short Status { get; set; } = 0;
         public string? CancelRejectReason { get; set; }
+        public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? UpdatedAt { get; set; }
         public int RowVersion { get; set; } = 1;
 
         public virtual Booking Booking { get; set; } = null!;

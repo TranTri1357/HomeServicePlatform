@@ -18,7 +18,7 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Entities
         public short Rating { get; set; }
         public string? Comment { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-        public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? UpdatedAt { get; set; }
         public bool IsDeleted { get; set; } = false;
 
         public virtual BookingItem BookingItem { get; set; } = null!;
