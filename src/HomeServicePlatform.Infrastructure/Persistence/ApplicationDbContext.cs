@@ -64,7 +64,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // 1. Quét tìm tất cả các bảng (Entity) đang chuẩn bị Thêm mới hoặc Cập nhật
+            // Quét tìm tất cả các bảng (Entity) đang chuẩn bị Thêm mới hoặc Cập nhật
             var entries = ChangeTracker.Entries()
                 .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
@@ -72,7 +72,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence
             {
                 var now = DateTimeOffset.UtcNow;
 
-                // 2. Nếu là CẬP NHẬT (Modified), tự động tìm cột UpdatedAt và điền giờ
+                // Nếu là CẬP NHẬT (Modified), tự động tìm cột UpdatedAt và điền giờ
                 if (entry.State == EntityState.Modified)
                 {
                     var updatedAtProp = entry.Entity.GetType().GetProperty("UpdatedAt");
@@ -82,7 +82,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence
                     }
                 }
 
-                // 3. Nếu là THÊM MỚI (Added), tự động điền giờ cho cả CreatedAt và UpdatedAt (nếu muốn)
+                // Nếu là THÊM MỚI (Added), tự động điền giờ cho cả CreatedAt và UpdatedAt
                 if (entry.State == EntityState.Added)
                 {
                     var createdAtProp = entry.Entity.GetType().GetProperty("CreatedAt");

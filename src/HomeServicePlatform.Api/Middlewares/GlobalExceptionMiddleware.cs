@@ -19,7 +19,7 @@ namespace HomeServicePlatform.Api.Middlewares
         {
             try
             {
-                await _next(context); // Cho request đi tiếp bình thường
+                await _next(context);
             }
             catch (Exception ex)
             {
@@ -38,11 +38,12 @@ namespace HomeServicePlatform.Api.Middlewares
                 // 1. Nếu là lỗi dữ liệu đầu vào (Do cái ValidationBehavior ném ra)
                 case ValidationException valEx:
                 statusCode = HttpStatusCode.BadRequest;
+                apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = "Dữ liệu đầu vào không hợp lệ.";
                 apiResponse.Errors = valEx.Errors.Select(e => e.ErrorMessage).ToList();
                 break;
 
-                // 2. Nếu là lỗi không tìm thấy dữ liệu (Do mình tự throw ở Handler)
+                // 2. Nếu là lỗi không tìm thấy dữ liệu
                 case NotFoundException notFoundEx:
                 statusCode = HttpStatusCode.NotFound;
                 apiResponse.StatusCode = (int)statusCode;
@@ -56,14 +57,14 @@ namespace HomeServicePlatform.Api.Middlewares
                 apiResponse.Message = badReqEx.Message;
                 break;
 
-                // THÊM MỚI: Bắt lỗi 401 Unauthorized
+                //Bắt lỗi 401 Unauthorized
                 case UnauthorizedException unauthorizedEx:
                 statusCode = HttpStatusCode.Unauthorized;
                 apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = unauthorizedEx.Message;
                 break;
 
-                // THÊM MỚI: Bắt lỗi 403 Forbidden
+                //Bắt lỗi 403 Forbidden
                 case ForbiddenException forbiddenEx:
                 statusCode = HttpStatusCode.Forbidden;
                 apiResponse.StatusCode = (int)statusCode;
@@ -74,7 +75,7 @@ namespace HomeServicePlatform.Api.Middlewares
                 default:
                 statusCode = HttpStatusCode.InternalServerError;
                 apiResponse.Message = "Đã xảy ra lỗi hệ thống nghiêm trọng. Vui lòng thử lại sau.";
-                apiResponse.Errors = new List<string> { exception.Message }; // Chỉ dùng khi dev, production nên ẩn đi
+                apiResponse.Errors = new List<string> { exception.Message }; // Chỉ dùng khi dev, production nên ẩn
                 break;
             }
 

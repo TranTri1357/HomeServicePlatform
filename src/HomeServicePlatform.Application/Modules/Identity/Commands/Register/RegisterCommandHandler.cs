@@ -26,7 +26,7 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.Register
 
         public async Task<ApiResponse<long>> Handle(RegisterCommand request, CancellationToken cancellationToken)
         {
-            var emailLower = request.Email.Trim().ToLower(); // Đồng bộ chữ thường
+            var emailLower = request.Email.Trim().ToLower();
             var phoneTrimmed = request.Phone.Trim();
 
             var existingByEmail = (await _userRepo.FindAsync(u => !u.IsDeleted && u.Email == emailLower)).FirstOrDefault();
@@ -43,7 +43,7 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.Register
                 PasswordHash = _passwordHasher.Hash(request.Password),
                 Status = 1,
                 UserRoles = new List<UserRole> { new() { RoleId = request.RoleId } }
-                // TUYỆT ĐỐI KHÔNG gán CreatedAt hay UpdatedAt ở đây
+
             };
 
             await _userRepo.AddAsync(user);

@@ -33,7 +33,7 @@ namespace HomeServicePlatform.Application.Common.Behaviors
                     throw new ValidationException(failures);
                 }
             }
-            return await next(); // Nếu không có lỗi, cho phép đi tiếp xuống Handler chính
+            return await next();
         }
     }
 }

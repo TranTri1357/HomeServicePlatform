@@ -1,8 +1,8 @@
-﻿using HomeServicePlatform.Application.Modules.Services.Commands.CreateService;
-using HomeServicePlatform.Application.Modules.Services.Commands.DeleteService;
-using HomeServicePlatform.Application.Modules.Services.Commands.UpdateService;
-using HomeServicePlatform.Application.Modules.Services.Queries.GetAllServices;
-using HomeServicePlatform.Application.Modules.Services.Queries.GetServiceDetail;
+﻿using HomeServicePlatform.Application.Modules.Services.Admin.Commands.CreateService;
+using HomeServicePlatform.Application.Modules.Services.Admin.Commands.DeleteService;
+using HomeServicePlatform.Application.Modules.Services.Admin.Commands.UpdateService;
+using HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetAllServices;
+using HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetServiceDetail;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

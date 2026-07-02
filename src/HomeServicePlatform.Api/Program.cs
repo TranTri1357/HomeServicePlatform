@@ -40,7 +40,7 @@ namespace HomeServicePlatform.Api
 
             app.MapControllers();
 
-            // Đặt đường dẫn để Client kết nối tới là /booking-hub
+            // Đặt đường dẫn để Client kết nối tới  /booking-hub
             app.MapHub<BookingHub>("/booking-hub");
 
             app.Run();

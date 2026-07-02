@@ -35,9 +35,9 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.Logout
                 return ApiResponse<bool>.Failure("Phiên làm việc này đã được đăng xuất trước đó.");
             }
 
-            // 3. Tiến hành thu hồi token
+            //Tiến hành thu hồi token
             existingToken.IsRevoked = true;
-            existingToken.RevokedAt = DateTimeOffset.UtcNow; // UTC chuẩn cho Database
+            existingToken.RevokedAt = DateTimeOffset.UtcNow; 
 
             _tokenRepo.Update(existingToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
