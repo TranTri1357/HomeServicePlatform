@@ -12,7 +12,9 @@ namespace HomeServicePlatform.Application.Modules.Search.Queries.GlobalSearch
         public GlobalSearchQueryValidator()
         {
             RuleFor(x => x.Keyword)
-                .NotEmpty().WithMessage("Từ khóa tìm kiếm không được để trống.");
+                 .NotEmpty().WithMessage("Từ khóa tìm kiếm không được để trống.")
+                 .Must(k => !string.IsNullOrWhiteSpace(k)).WithMessage("Từ khóa không hợp lệ.")
+                 .MaximumLength(100).WithMessage("Từ khóa tìm kiếm không được vượt quá 100 ký tự.");
         }
     }
 }

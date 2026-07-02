@@ -13,7 +13,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetPop
         {
             RuleFor(x => x.Limit)
                 .GreaterThan(0).WithMessage("Giới hạn phải là một số dương.")
-                .LessThanOrEqualTo(10).WithMessage("Chỉ được phép lấy tối đa 10 dịch vụ."); ;
+                .LessThanOrEqualTo(10).WithMessage("Chỉ được phép lấy tối đa 10 dịch vụ.");
         }
     }
 }
