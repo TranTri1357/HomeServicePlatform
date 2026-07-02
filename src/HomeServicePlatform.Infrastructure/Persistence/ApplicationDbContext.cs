@@ -19,7 +19,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Infrastructure.Persistence
 {
-    public class ApplicationDbContext :DbContext, IApplicationDbContext
+    public class ApplicationDbContext : DbContext, IApplicationDbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
@@ -60,6 +60,47 @@ namespace HomeServicePlatform.Infrastructure.Persistence
 
             // TỰ ĐỘNG NẠP TOÀN BỘ CONFIGURATION FILE (Quét qua Assembly hiện tại)
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            // 1. Quét tìm tất cả các bảng (Entity) đang chuẩn bị Thêm mới hoặc Cập nhật
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+
+            foreach (var entry in entries)
+            {
+                var now = DateTimeOffset.UtcNow;
+
+                // 2. Nếu là CẬP NHẬT (Modified), tự động tìm cột UpdatedAt và điền giờ
+                if (entry.State == EntityState.Modified)
+                {
+                    var updatedAtProp = entry.Entity.GetType().GetProperty("UpdatedAt");
+                    if (updatedAtProp != null && updatedAtProp.CanWrite)
+                    {
+                        updatedAtProp.SetValue(entry.Entity, now);
+                    }
+                }
+
+                // 3. Nếu là THÊM MỚI (Added), tự động điền giờ cho cả CreatedAt và UpdatedAt (nếu muốn)
+                if (entry.State == EntityState.Added)
+                {
+                    var createdAtProp = entry.Entity.GetType().GetProperty("CreatedAt");
+                    if (createdAtProp != null && createdAtProp.CanWrite)
+                    {
+                        createdAtProp.SetValue(entry.Entity, now);
+                    }
+
+                    // (Tùy chọn) Gán luôn UpdatedAt lúc tạo để dễ query sắp xếp sau này
+                    var updatedAtProp = entry.Entity.GetType().GetProperty("UpdatedAt");
+                    if (updatedAtProp != null && updatedAtProp.CanWrite)
+                    {
+                        updatedAtProp.SetValue(entry.Entity, now);
+                    }
+                }
+            }
+
+            return base.SaveChangesAsync(cancellationToken);
         }
     }
 }

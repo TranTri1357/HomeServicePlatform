@@ -1,5 +1,9 @@
 ﻿using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Domain.Modules.Bookings.Interface;
+using HomeServicePlatform.Domain.Modules.Services.Entities;
+using HomeServicePlatform.Infrastructure.Identity;
 using HomeServicePlatform.Infrastructure.Persistence;
+using HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings;
 using HomeServicePlatform.Infrastructure.Persistence.Repositories.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,13 +31,19 @@ namespace HomeServicePlatform.Infrastructure
                 provider.GetRequiredService<ApplicationDbContext>());
 
             // 3. Đăng ký các Repository đặc thù khác nếu có (Ví dụ: BookingRepository...)
-            // services.AddScoped<IBookingRepository, BookingRepository>();
+            services.AddScoped<IBookingRepository, BookingRepository>();
+
+
+            services.AddScoped<IPasswordHasher, PasswordHasher>();
+            services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
             // Đăng ký Unit of Work
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // 3. Đăng ký Generic Repository
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
+
 
             return services;
         }

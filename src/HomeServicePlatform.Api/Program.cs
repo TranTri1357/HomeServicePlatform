@@ -14,7 +14,7 @@ namespace HomeServicePlatform.Api
         {
             var builder = WebApplication.CreateBuilder(args);
             //Đăng kí cấu hình API
-            builder.Services.AddApiServices();
+            builder.Services.AddApiServices(builder.Configuration);
             //Đăng kí cấu hình Application
             builder.Services.AddApplicationServices();
             // Đăng kí cấu hình Infrastructure
@@ -33,7 +33,8 @@ namespace HomeServicePlatform.Api
             }
 
             app.UseHttpsRedirection();
-
+            app.UseCors("AllowAll");
+            app.UseAuthentication();
             app.UseAuthorization();
 
 

@@ -38,7 +38,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Commands.UpdateServic
             service.Description = request.Description;
             service.DurationMinutes = request.DurationMinutes;
             service.IsActive = request.IsActive;
-            service.UpdatedAt = DateTimeOffset.UtcNow; // Cập nhật dấu mốc thời gian sửa sửa
+
 
             // 4. Đánh dấu thay đổi và chốt hạ lưu xuống Postgres
             _repo.Update(service);

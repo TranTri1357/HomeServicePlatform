@@ -30,7 +30,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Commands.DeleteServic
                 throw new NotFoundException("Dịch vụ không tồn tại hoặc đã bị xóa.");
 
             service.IsDeleted = true; // Xóa mềm
-            service.UpdatedAt = DateTimeOffset.UtcNow;
+
 
             _repo.Update(service);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

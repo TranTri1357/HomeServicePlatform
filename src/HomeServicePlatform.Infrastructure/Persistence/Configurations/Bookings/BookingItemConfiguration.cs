@@ -37,6 +37,8 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Bookings
             entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue((short)0);
             entity.Property(e => e.CancelRejectReason).HasColumnName("cancel_reject_reason").HasMaxLength(500);
             entity.Property(e => e.RowVersion).HasColumnName("row_version").HasDefaultValue(1).IsConcurrencyToken();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.Booking).WithMany(p => p.BookingItems).HasForeignKey(d => d.BookingId).HasConstraintName("fk_booking_items_booking");
             entity.HasOne(d => d.Service).WithMany().HasForeignKey(d => d.ServiceId).HasConstraintName("fk_booking_items_service");
