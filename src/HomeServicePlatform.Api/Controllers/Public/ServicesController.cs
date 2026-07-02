@@ -1,4 +1,5 @@
 ﻿using HomeServicePlatform.Application.Modules.Services.Public.Queries.GetPopularServices;
+using HomeServicePlatform.Application.Modules.Services.Public.Queries.GetServicesExplorer;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,14 @@ namespace HomeServicePlatform.Api.Controllers.Public
         public async Task<IActionResult> GetPopularServices([FromQuery] int limit = 5)
         {
             var query = new GetPopularServicesQuery { Limit = limit };
+            var result = await _mediator.Send(query);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("explorer")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetServicesExplorer([FromQuery] GetServicesExplorerQuery query)
+        {
             var result = await _mediator.Send(query);
             return StatusCode(result.StatusCode, result);
         }

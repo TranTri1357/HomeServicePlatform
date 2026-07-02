@@ -74,6 +74,7 @@ namespace HomeServicePlatform.Api.Middlewares
                 // 4. Các lỗi hệ thống không lường trước được (Lỗi sập nguồn, NullReference...)
                 default:
                 statusCode = HttpStatusCode.InternalServerError;
+                apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = "Đã xảy ra lỗi hệ thống nghiêm trọng. Vui lòng thử lại sau.";
                 apiResponse.Errors = new List<string> { exception.Message }; // Chỉ dùng khi dev, production nên ẩn
                 break;

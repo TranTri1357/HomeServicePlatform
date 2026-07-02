@@ -11,6 +11,12 @@ namespace HomeServicePlatform.Application.Modules.Search.Queries
 {
     public class GlobalSearchQuery : IRequest<ApiResponse<SearchResultDto>>
     {
-        public string Keyword { get; set; } = string.Empty;
+        private string _keyword = string.Empty;
+
+        public string Keyword
+        {
+            get => _keyword;
+            set => _keyword = value?.Trim() ?? string.Empty;
+        }
     }
 }
