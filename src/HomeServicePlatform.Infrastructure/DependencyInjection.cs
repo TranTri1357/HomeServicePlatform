@@ -20,27 +20,27 @@ namespace HomeServicePlatform.Infrastructure
     {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // 1. Lấy chuỗi kết nối từ Configuration giống hệt bên Program
+            // Lấy chuỗi kết nối từ Configuration giống hệt bên Program
             var connectionString = configuration.GetConnectionString("DefaultConnection");
 
-            // 2. Cấu hình DbContext kết hợp PostgreSQL + PostGIS (NetTopologySuite)
+            // Cấu hình DbContext kết hợp PostgreSQL + PostGIS (NetTopologySuite)
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseNpgsql(connectionString, o => o.UseNetTopologySuite()));
 
             services.AddScoped<IApplicationDbContext>(provider =>
                 provider.GetRequiredService<ApplicationDbContext>());
 
-            // 3. Đăng ký các Repository đặc thù khác nếu có (Ví dụ: BookingRepository...)
+            // Đăng ký các Repository đặc thù khác nếu có
             services.AddScoped<IBookingRepository, BookingRepository>();
 
 
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
-            // Đăng ký Unit of Work
+
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // 3. Đăng ký Generic Repository
+
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
 

@@ -28,7 +28,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Tasker
             entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
             entity.Property(e => e.EffectiveTo).HasColumnName("effective_to");
 
-            entity.HasOne(d => d.Service).WithMany().HasForeignKey(d => d.ServiceId).HasConstraintName("fk_service_prices_service");
+            entity.HasOne(d => d.Service).WithMany(p => p.TaskerServicePrices).HasForeignKey(d => d.ServiceId).HasConstraintName("fk_service_prices_service");
             entity.HasOne(d => d.TaskerProfile).WithMany().HasForeignKey(d => d.TaskerId).HasConstraintName("fk_service_prices_tasker");
 
             entity.HasIndex(e => new { e.ServiceId, e.EffectiveFrom, e.EffectiveTo }).HasDatabaseName("ix_service_prices_service_id_effective");

@@ -3,6 +3,7 @@ using HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking;
 using HomeServicePlatform.Domain.Modules.Bookings.Interface;
 using HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -51,10 +52,10 @@ namespace HomeServicePlatform.Api
 
                 options.Events = new JwtBearerEvents
                 {
-                    // Sự kiện khi bị lỗi 401 (Chưa đăng nhập / Token sai)
+                    // Sự kiện khi bị lỗi 401
                     OnChallenge = async context =>
                     {
-                        context.HandleResponse(); // Chặn hành vi mặc định của .NET (trả về body rỗng)
+                        context.HandleResponse();
                         context.Response.StatusCode = 401;
                         context.Response.ContentType = "application/json";
 
@@ -69,7 +70,7 @@ namespace HomeServicePlatform.Api
                         await context.Response.WriteAsync(json);
                     },
 
-                    // Sự kiện khi bị lỗi 403 (Đã đăng nhập nhưng sai Role)
+                    // Sự kiện khi bị lỗi 403
                     OnForbidden = async context =>
                     {
                         context.Response.StatusCode = 403;
@@ -88,12 +89,18 @@ namespace HomeServicePlatform.Api
                 };
             });
 
+            services.Configure<ApiBehaviorOptions>(options =>
+            {
+                // Tắt kiểm tra ModelState mặc định, để FluentValidation và Middleware
+                options.SuppressModelStateInvalidFilter = true;
+            });
+
             services.AddControllers();
             services.AddEndpointsApiExplorer();
             //services.AddSwaggerGen(); // Cấu hình Swagger để test API
             services.AddSwaggerGen(c =>
             {
-                // 1. Định nghĩa giao diện nút Authorize (Cái ổ khóa)
+                // 1. Định nghĩa giao diện nút Authorize
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Description = "Vui lòng nhập Token theo định dạng: Bearer {chuỗi_token_của_bạn}",

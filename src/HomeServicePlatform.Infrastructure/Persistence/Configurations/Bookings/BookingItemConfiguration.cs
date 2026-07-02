@@ -41,7 +41,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Bookings
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.Booking).WithMany(p => p.BookingItems).HasForeignKey(d => d.BookingId).HasConstraintName("fk_booking_items_booking");
-            entity.HasOne(d => d.Service).WithMany().HasForeignKey(d => d.ServiceId).HasConstraintName("fk_booking_items_service");
+            entity.HasOne(d => d.Service).WithMany(p => p.BookingItems).HasForeignKey(d => d.ServiceId).HasConstraintName("fk_booking_items_service");
             entity.HasOne(d => d.TaskerProfile).WithMany().HasForeignKey(d => d.TaskerId).HasConstraintName("fk_booking_items_tasker_profile");
 
             entity.HasIndex(e => new { e.TaskerId, e.StartAt, e.EndAt }).HasDatabaseName("ix_booking_items_tasker_time");
