@@ -16,11 +16,6 @@ namespace HomeServicePlatform.Api.Controllers.Booking
             _mediator = mediator;
         }
 
-        /// <summary>
-        /// API đặt lịch chuyên nghiệp dành cho App Khách hàng
-        /// </summary>
-        /// <param name="command">Thông tin yêu cầu đặt lịch từ Client</param>
-        /// <returns>Cấu trúc ApiResponse tiêu chuẩn chứa thông tin đơn hàng vừa tạo</returns>
         [HttpPost]
        
         public async Task<IActionResult> Create([FromBody] CreateBookingCommand command)
@@ -30,7 +25,7 @@ namespace HomeServicePlatform.Api.Controllers.Booking
 
             // 2. Trả về HTTP 201 Created kèm bọc khối dữ liệu đồng nhất toàn hệ thống.
             // result hiện tại đã là một đối tượng ApiResponse<CreateBookingResponse> từ Handler trả ra
-            return StatusCode(201, result);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

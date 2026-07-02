@@ -1,0 +1,65 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Responses;
+using MediatR;
+
+namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
+{
+    public class GetTaskerJobsQueryHandler : IRequestHandler<GetTaskerJobsQuery, ApiResponse<List<TaskerJobDto>>>
+    {
+        private readonly IApplicationDbContext _context;
+
+        public GetTaskerJobsQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<ApiResponse<List<TaskerJobDto>>> Handle(GetTaskerJobsQuery request, CancellationToken cancellationToken)
+        {
+            // 1. Khởi tạo Query gốc kết nối trực tiếp trên các Entity thô dưới Database
+            var sourceQuery = from item in _context.BookingItems
+                              where item.TaskerId == request.TaskerId
+
+                              join b in _context.Bookings on item.BookingId equals b.BookingId
+                              join cust in _context.Users on b.CustomerId equals cust.UserId
+                              join s in _context.Services on item.ServiceId equals s.ServiceId
+
+                              join addr in _context.BookingAddresses on b.BookingId equals addr.BookingId into addrGroup
+                              from subAddr in addrGroup.DefaultIfEmpty()
+                              select new { item, b, cust, s, subAddr };
+
+            // 2. 🟢 CHỌN LỌC HOẶC KHÔNG LỌC:
+            // Nếu có truyền status -> Thêm điều kiện lọc. Nếu để trống -> Bỏ qua và lấy TẤT CẢ.
+            if (request.Status.HasValue)
+            {
+                sourceQuery = sourceQuery.Where(q => q.item.Status == request.Status.Value);
+            }
+
+            // 3. Sắp xếp theo thứ tự thời gian công việc gần nhất lên đầu
+            sourceQuery = sourceQuery.OrderBy(q => q.item.StartAt);
+
+            // 4. Cuối cùng mới Projection nhào nặn cấu trúc ra DTO để trả về cho Client
+            var result = await sourceQuery
+                .Select(q => new TaskerJobDto(
+                    q.item.BookingItemId,
+                    q.b.BookingId,
+                    q.s.Name,
+                    q.cust.FullName,
+                    q.cust.Phone,
+                    q.item.StartAt,
+                    q.item.EndAt,
+                    q.subAddr != null ? $"{q.subAddr.AddressLine}, {q.subAddr.WardCode}" : "Chưa cập nhật địa chỉ",
+                    q.item.TotalPrice,
+                    (short)q.item.Status
+                ))
+                .ToListAsync(cancellationToken);
+
+            return ApiResponse<List<TaskerJobDto>>.Success(result, "Lấy danh sách công việc của thợ thành công.");
+        }
+    }
+}
