@@ -25,6 +25,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Payments
             entity.Property(e => e.TransactionCode).HasColumnName("transaction_code").HasMaxLength(100);
             entity.Property(e => e.PaidAt).HasColumnName("paid_at");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.RowVersion).HasColumnName("row_version").HasDefaultValue(1).IsConcurrencyToken();
 
             entity.HasOne(d => d.Booking).WithMany(p => p.Payments).HasForeignKey(d => d.BookingId).HasConstraintName("fk_payments_booking");

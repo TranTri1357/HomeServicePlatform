@@ -45,13 +45,29 @@ namespace HomeServicePlatform.Api.Middlewares
                 // 2. Nếu là lỗi không tìm thấy dữ liệu (Do mình tự throw ở Handler)
                 case NotFoundException notFoundEx:
                 statusCode = HttpStatusCode.NotFound;
+                apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = notFoundEx.Message;
                 break;
 
                 // 3. Nếu là lỗi yêu cầu sai nghiệp vụ
                 case BadRequestException badReqEx:
                 statusCode = HttpStatusCode.BadRequest;
+                apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = badReqEx.Message;
+                break;
+
+                // THÊM MỚI: Bắt lỗi 401 Unauthorized
+                case UnauthorizedException unauthorizedEx:
+                statusCode = HttpStatusCode.Unauthorized;
+                apiResponse.StatusCode = (int)statusCode;
+                apiResponse.Message = unauthorizedEx.Message;
+                break;
+
+                // THÊM MỚI: Bắt lỗi 403 Forbidden
+                case ForbiddenException forbiddenEx:
+                statusCode = HttpStatusCode.Forbidden;
+                apiResponse.StatusCode = (int)statusCode;
+                apiResponse.Message = forbiddenEx.Message;
                 break;
 
                 // 4. Các lỗi hệ thống không lường trước được (Lỗi sập nguồn, NullReference...)

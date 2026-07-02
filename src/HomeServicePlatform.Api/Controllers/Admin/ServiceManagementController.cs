@@ -4,12 +4,14 @@ using HomeServicePlatform.Application.Modules.Services.Commands.UpdateService;
 using HomeServicePlatform.Application.Modules.Services.Queries.GetAllServices;
 using HomeServicePlatform.Application.Modules.Services.Queries.GetServiceDetail;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HomeServicePlatform.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/services")]
+    [Authorize(Roles = "Admin")]
     public class ServiceManagementController : ControllerBase
     {
         private readonly IMediator _mediator;
