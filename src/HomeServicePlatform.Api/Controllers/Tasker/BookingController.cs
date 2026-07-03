@@ -1,5 +1,6 @@
 ﻿using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.AcceptBooking;
+using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartMoving;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartWorking;
@@ -51,6 +52,13 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         public async Task<IActionResult> CompleteWork(long id, [FromBody] TaskerActionBody body)
         {
             var result = await _mediator.Send(new CompleteWorkCommand(id, body.TaskerId));
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPut("{id}/cancel")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CancelBooking([FromBody] CancelBookingCommand command)
+        {
+            var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }
     }
