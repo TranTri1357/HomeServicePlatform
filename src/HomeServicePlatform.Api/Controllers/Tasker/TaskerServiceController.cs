@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HomeServicePlatform.Api.Controllers.Tasker
 {
     [ApiController]
-    [Route("api/v1/tasker-services")]
+    [Route("api/tasker-services")]
     [Authorize(Roles = "Tasker")]
     public class TaskerServiceController : ControllerBase
     {
