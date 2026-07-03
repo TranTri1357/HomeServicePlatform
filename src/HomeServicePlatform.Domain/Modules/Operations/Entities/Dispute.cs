@@ -14,7 +14,7 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Entities
         public long BookingId { get; set; }
         public long RaisedById { get; set; }
         public string Reason { get; set; } = null!;
-        public short Status { get; set; } = 0;
+        public short Status { get; set; } = 0; // 0: Đang chờ xử lý, 1: Đang giải quyết, 2: Đã đóng
         public string? ResolutionNote { get; set; }
         public decimal? RefundAmount { get; set; } = 0;
         public DateTimeOffset? ResolvedAt { get; set; }
