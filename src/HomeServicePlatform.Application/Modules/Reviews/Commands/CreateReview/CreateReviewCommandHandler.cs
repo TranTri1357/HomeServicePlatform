@@ -29,26 +29,25 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Commands.CreateReview
                 .Include(bi => bi.TaskerProfile)
                 .FirstOrDefaultAsync(bi => bi.BookingItemId == request.BookingItemId, ct);
 
-            // Rào chắn 1: Đơn hàng phải tồn tại
+
             if (bookingItem == null)
                 throw new NotFoundException("Không tìm thấy hạng mục công việc này.");
 
-            // Rào chắn 2: Chỉ người đặt đơn mới có quyền đánh giá
+
             if (bookingItem.Booking.CustomerId != request.CustomerId)
                 throw new ForbiddenException("Bạn không có quyền đánh giá đơn hàng của người khác.");
 
-            // Rào chắn 3: Đơn hàng bắt buộc phải ở trạng thái Completed
+
             if (bookingItem.Booking.Status != BookingStatus.Completed)
                 throw new BadRequestException("Bạn chỉ có thể đánh giá khi công việc đã được hoàn thành.");
 
-            //  CHẮN MỚI BỔ SUNG (Giúp fix 2 cái Cảnh báo kia)
-            // Thuyết phục C# rằng dữ liệu này không bao giờ Null, nếu Null là do DB bị lỗi
+
             if (!bookingItem.TaskerId.HasValue || bookingItem.TaskerProfile == null)
             {
                 throw new InvalidOperationException("Dữ liệu đơn hàng bị lỗi: Đơn đã hoàn thành nhưng không tìm thấy thông tin thợ.");
             }
 
-            // Rào chắn 4: Mỗi đơn hàng chỉ được đánh giá 1 lần
+
             bool hasReviewed = await _context.Reviews
                 .AnyAsync(r => r.BookingItemId == request.BookingItemId && !r.IsDeleted, ct);
             if (hasReviewed)
