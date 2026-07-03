@@ -27,5 +27,47 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
         public virtual ICollection<TaskerSchedule> TaskerSchedules { get; set; } = new List<TaskerSchedule>();
         public virtual ICollection<TaskerTimeOff> TaskerTimeOffs { get; set; } = new List<TaskerTimeOff>();
         public virtual ICollection<TaskerServicePrice> TaskerServicePrices { get; set; } = new List<TaskerServicePrice>();
+
+
+        public void VerifyTasker()
+        {
+            if (IsVerified)
+                throw new InvalidOperationException("Tài khoản thợ này đã được xác thực trước đó.");
+
+            IsVerified = true;
+            VerifiedAt = DateTimeOffset.UtcNow;
+            Status = 1;
+        }
+
+
+        public void SuspendTasker()
+        {
+            Status = 0;
+                        // Có thể thêm logic: Ghi log lý do khóa ở đây nếu bạn có bảng Log
+        }
+
+        /// <summary>
+        /// Cập nhật vị trí GPS mới nhất của thợ (Dùng cho App của thợ bắn tọa độ liên tục)
+        /// </summary>
+        public void UpdateLocation(Point newGeom)
+        {
+            CurrentGeom = newGeom ?? throw new ArgumentNullException(nameof(newGeom));
+        }
+
+        /// <summary>
+        /// Cập nhật điểm đánh giá trung bình sau khi có review mới
+        /// </summary>
+        public void UpdateRating(short newRating)
+        {
+            if (newRating < 1 || newRating > 5)
+                throw new ArgumentOutOfRangeException(nameof(newRating), "Điểm đánh giá phải từ 1 đến 5.");
+
+            // Công thức: ((Điểm TB cũ * Tổng số đánh giá cũ) + Điểm mới) / Tổng số đánh giá mới
+            decimal totalScore = (RatingAvg * TotalReviews) + newRating;
+            TotalReviews++;
+            RatingAvg = Math.Round(totalScore / TotalReviews, 1); // Làm tròn 1 chữ số thập phân
+        }
     }
+
+
 }

@@ -17,7 +17,7 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.Register
 
             RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("Email không được để trống.")
-                .EmailAddress().WithMessage("Email không đúng định dạng (VD: example@gmail.com).")
+                .Matches(@"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").WithMessage("Email không đúng định dạng (VD: example@gmail.com).")
                 .MaximumLength(150).WithMessage("Email không vượt quá 150 ký tự.");
 
             RuleFor(x => x.Password)
@@ -26,8 +26,8 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.Register
 
             RuleFor(x => x.Phone)
                 .NotEmpty().WithMessage("Số điện thoại không được để trống.")
-                .Matches(@"^(0[3|5|7|8|9])+([0-9]{8})$").WithMessage("Số điện thoại không đúng định dạng.");
-            
+                .Matches(@"^(0[3|5|7|8|9])([0-9]{8})$").WithMessage("Số điện thoại không đúng định dạng.");
+
             RuleFor(x => x.ConfirmPassword)
                 .Equal(x => x.Password).WithMessage("Xác nhận mật khẩu không khớp với mật khẩu.");
 
