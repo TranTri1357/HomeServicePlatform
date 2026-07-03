@@ -26,5 +26,6 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
         public virtual ICollection<TaskerService> TaskerServices { get; set; } = new List<TaskerService>();
         public virtual ICollection<TaskerSchedule> TaskerSchedules { get; set; } = new List<TaskerSchedule>();
         public virtual ICollection<TaskerTimeOff> TaskerTimeOffs { get; set; } = new List<TaskerTimeOff>();
+        public virtual ICollection<TaskerServicePrice> TaskerServicePrices { get; set; } = new List<TaskerServicePrice>();
     }
 }
