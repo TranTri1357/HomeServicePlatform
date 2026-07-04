@@ -1,4 +1,6 @@
-﻿using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerDetail;
+﻿using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearbyTaskers;
+using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerDetail;
+using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerQuickInfo;
 using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTopTaskers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -32,6 +34,34 @@ namespace HomeServicePlatform.Api.Controllers.Public
         public async Task<IActionResult> GetTopTaskers([FromQuery] int limit = 5)
         {
             var query = new GetTopTaskersQuery { Limit = limit };
+            var result = await _mediator.Send(query);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("nearby")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetNearbyTaskers([FromQuery] long serviceId, [FromQuery] double lat, [FromQuery] double lng, [FromQuery] double radius = 10)
+        {
+            var query = new GetNearbyTaskersQuery
+            {
+                ServiceId = serviceId,
+                CustomerLat = lat,
+                CustomerLng = lng,
+                RadiusKm = radius
+            };
+            var result = await _mediator.Send(query);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id}/service/{serviceId}/quick-info")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTaskerQuickInfo(long id, long serviceId)
+        {
+            var query = new GetTaskerQuickInfoQuery
+            {
+                TaskerId = id,
+                ServiceId = serviceId
+            };
             var result = await _mediator.Send(query);
             return StatusCode(result.StatusCode, result);
         }
