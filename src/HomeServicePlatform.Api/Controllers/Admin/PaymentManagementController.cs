@@ -6,12 +6,14 @@ using HomeServicePlatform.Application.Modules.Payments.Commands.ProcessPaymentCa
 using HomeServicePlatform.Application.Modules.Payments.Queries.GetPagedPayments;
 using HomeServicePlatform.Application.Modules.Payments.Queries.GetPaymentDetail;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HomeServicePlatform.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/payments")]
+    [Authorize(Roles = "Admin")]
     public class PaymentManagementController : ControllerBase
     {
         private readonly IMediator _mediator;

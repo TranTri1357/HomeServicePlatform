@@ -11,7 +11,7 @@ namespace HomeServicePlatform.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/commissions")]
-    [Authorize(Roles = "Tasker")] // Đảm bảo chỉ có Quản trị tài chính mới được vào cấu hình % sàn
+    [Authorize(Roles = "Admin")] 
     public class CommissionManagementController : ControllerBase
     {
         private readonly IMediator _mediator;
