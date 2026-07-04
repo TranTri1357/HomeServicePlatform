@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using HomeServicePlatform.Infrastructure.ThirdPartyServices.Payments.Strategies;
 
 namespace HomeServicePlatform.Infrastructure
 {
@@ -33,7 +34,10 @@ namespace HomeServicePlatform.Infrastructure
             // Đăng ký các Repository đặc thù khác nếu có
             services.AddScoped<IBookingRepository, BookingRepository>();
 
-
+            services.AddScoped<IPaymentStrategy, WalletPaymentStrategy>();
+            //services.AddScoped<IPaymentStrategy, MoMoPaymentStrategy>();
+            //services.AddScoped<IPaymentStrategy, ZaloPayPaymentStrategy>();
+            services.AddScoped<IPaymentStrategy, CashPaymentStrategy>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
