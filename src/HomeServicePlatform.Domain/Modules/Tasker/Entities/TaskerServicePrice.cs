@@ -18,5 +18,13 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
 
         public virtual TaskerProfile TaskerProfile { get; set; } = null!;
         public virtual Service Service { get; set; } = null!;
+
+        public void Expire(DateTimeOffset expirationTime)
+        {
+            if (EffectiveTo.HasValue && EffectiveTo.Value <= expirationTime)
+                throw new InvalidOperationException("Mức giá này đã hết hạn từ trước.");
+
+            EffectiveTo = expirationTime;
+        }
     }
 }
