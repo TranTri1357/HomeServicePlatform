@@ -1,0 +1,24 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
+using MediatR;
+
+namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheckout
+{
+    public record CheckoutResponse(
+        long PaymentId,
+        bool IsPaid,
+        string? PaymentUrl
+    );
+
+    // Dữ liệu tiếp nhận yêu cầu thanh toán từ Client gửi lên
+    public record ProcessCheckoutCommand(
+        long BookingId,
+        decimal Amount,
+        PaymentMethod Method // 1: SystemWallet, 2: MoMo, 3: ZaloPay, 4: VNPAY, 5: Cash
+    ) : IRequest<ApiResponse<CheckoutResponse>>;
+}
