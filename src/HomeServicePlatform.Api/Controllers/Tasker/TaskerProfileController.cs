@@ -1,8 +1,10 @@
 ﻿using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Application.Modules.Tasker.Commands.CreateTaskerProfile;
 using HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfile;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace HomeServicePlatform.Api.Controllers.Tasker
 {
@@ -22,6 +24,14 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         public async Task<IActionResult> GetTaskerProfile([FromRoute] long id)
         {
             var result = await _mediator.Send(new GetTaskerProfileQuery(id));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateProfile([FromBody] CreateTaskerProfileCommand command)
+        {
+            command.UserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }
     }
