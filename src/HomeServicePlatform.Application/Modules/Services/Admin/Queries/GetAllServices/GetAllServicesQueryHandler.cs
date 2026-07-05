@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using HomeServicePlatform.Application.Modules.Services.Admin.Dtos;
 
 namespace HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetAllServices
 {
@@ -22,27 +23,34 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetAllS
 
         public async Task<ApiResponse<PagedResult<ServiceDto>>> Handle(GetAllServicesQuery request, CancellationToken cancellationToken)
         {
-            // 1. Lấy dữ liệu dạng IQueryable và bỏ qua các record đã xóa mềm
+
             var query = _context.Services
-                .AsNoTracking() // Tăng tốc độ đọc 
+                .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
-            // 2. Tìm kiếm theo tên (Nếu có nhập searchTerm)
+
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var search = request.SearchTerm.ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(search));
             }
 
-            // 3. Đếm tổng số lượng để phục vụ phân trang
+
             var totalCount = await query.CountAsync(cancellationToken);
 
-            // 4. Cắt dữ liệu (Pagination) và ánh xạ sang DTO
+
             var items = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
-                .Select(x => new ServiceDto(x.ServiceId, x.Name, x.Description, x.DurationMinutes, x.IsActive))
+                .Select(x => new ServiceDto(
+                    x.ServiceId,
+                    x.Name,
+                    x.Category.Name,            
+                    x.TaskerServices.Count(),   
+                    x.BookingItems.Count(),     
+                    x.IsActive
+                ))
                 .ToListAsync(cancellationToken);
 
             var result = new PagedResult<ServiceDto>
@@ -53,7 +61,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetAllS
                 PageSize = request.PageSize
             };
 
-            return ApiResponse<PagedResult<ServiceDto>>.Success(result, "Lấy danh sách thành công");
+            return ApiResponse<PagedResult<ServiceDto>>.Success(result, "Lấy danh sách dịch vụ thành công");
         }
     }
 }

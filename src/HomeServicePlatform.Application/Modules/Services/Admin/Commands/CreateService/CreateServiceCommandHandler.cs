@@ -12,13 +12,11 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Create
 {
     public class CreateServiceCommandHandler : IRequestHandler<CreateServiceCommand, ApiResponse<long>>
     {
-        private readonly IGenericRepository<ServiceEntity> _repo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IApplicationDbContext _context;
 
-        public CreateServiceCommandHandler(IGenericRepository<ServiceEntity> repo, IUnitOfWork unitOfWork)
+        public CreateServiceCommandHandler(IApplicationDbContext context)
         {
-            _repo = repo;
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateServiceCommand request, CancellationToken cancellationToken)
@@ -33,8 +31,8 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Create
                 IsDeleted = false
             };
 
-            await _repo.AddAsync(service);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _context.Services.Add(service);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return ApiResponse<long>.Success(service.ServiceId, "Tạo dịch vụ thành công.", 201);
         }

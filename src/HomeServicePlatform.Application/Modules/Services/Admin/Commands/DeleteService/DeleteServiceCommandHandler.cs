@@ -3,6 +3,7 @@ using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Services.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,27 +14,24 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Delete
 {
     public class DeleteServiceCommandHandler : IRequestHandler<DeleteServiceCommand, ApiResponse<bool>>
     {
-        private readonly IGenericRepository<Service> _repo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IApplicationDbContext _context;
 
-        public DeleteServiceCommandHandler(IGenericRepository<Service> repo, IUnitOfWork unitOfWork)
+        public DeleteServiceCommandHandler(IApplicationDbContext context)
         {
-            _repo = repo;
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<ApiResponse<bool>> Handle(DeleteServiceCommand request, CancellationToken cancellationToken)
         {
-            var service = await _repo.GetByIdAsync(request.ServiceId);
+            var service = await _context.Services
+                .FirstOrDefaultAsync(s => s.ServiceId == request.ServiceId, cancellationToken);
 
             if (service == null || service.IsDeleted)
                 throw new NotFoundException("Dịch vụ không tồn tại hoặc đã bị xóa.");
 
             service.IsDeleted = true;
 
-
-            _repo.Update(service);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return ApiResponse<bool>.Success(true, "Xóa dịch vụ thành công.");
         }

@@ -2,6 +2,7 @@
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,18 +15,17 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Update
 {
     public class UpdateServiceCommandHandler : IRequestHandler<UpdateServiceCommand, ApiResponse<bool>>
     {
-        private readonly IGenericRepository<ServiceEntity> _repo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IApplicationDbContext _context;
 
-        public UpdateServiceCommandHandler(IGenericRepository<ServiceEntity> repo, IUnitOfWork unitOfWork)
+        public UpdateServiceCommandHandler(IApplicationDbContext context)
         {
-            _repo = repo;
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<ApiResponse<bool>> Handle(UpdateServiceCommand request, CancellationToken cancellationToken)
         {
-            var service = await _repo.GetByIdAsync(request.ServiceId);
+            var service = await _context.Services
+                .FirstOrDefaultAsync(s => s.ServiceId == request.ServiceId, cancellationToken);
 
             if (service == null || service.IsDeleted)
                 throw new NotFoundException($"Không tìm thấy dịch vụ với ID {request.ServiceId}");
@@ -36,9 +36,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Update
             service.DurationMinutes = request.DurationMinutes;
             service.IsActive = request.IsActive;
 
-
-            _repo.Update(service);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return ApiResponse<bool>.Success(true, "Cập nhật thông tin dịch vụ thành công.");
         }
