@@ -15,5 +15,22 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
         public string? Reason { get; set; }
 
         public virtual TaskerProfile TaskerProfile { get; set; } = null!;
+
+        public void RequestTimeOff(DateTimeOffset startAt, DateTimeOffset endAt, string? reason)
+        {
+            if (startAt >= endAt)
+            {
+                throw new Exception("Thời gian bắt đầu nghỉ phép phải trước thời gian kết thúc.");
+            }
+
+            if (startAt < DateTimeOffset.UtcNow)
+            {
+                throw new Exception("Không thể xin nghỉ phép cho một thời điểm trong quá khứ.");
+            }
+
+            StartAt = startAt;
+            EndAt = endAt;
+            Reason = reason;
+        }
     }
 }
