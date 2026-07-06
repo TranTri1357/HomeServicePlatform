@@ -1,6 +1,8 @@
-﻿using HomeServicePlatform.Application.Common.Responses;
+﻿using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking;
 using HomeServicePlatform.Domain.Modules.Bookings.Interface;
+using HomeServicePlatform.Infrastructure.Identity;
 using HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
@@ -95,6 +97,7 @@ namespace HomeServicePlatform.Api
                 options.SuppressModelStateInvalidFilter = true;
             });
 
+            services.AddHttpContextAccessor();
             services.AddControllers();
             services.AddEndpointsApiExplorer();
             //services.AddSwaggerGen(); // Cấu hình Swagger để test API
@@ -134,6 +137,9 @@ namespace HomeServicePlatform.Api
             {
                 cfg.RegisterServicesFromAssembly(typeof(CreateBookingCommand).Assembly);
             });
+
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
+
             return services;
         }
     }
