@@ -8,10 +8,11 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings
 {
     public record MyBookingDto(
         long BookingId,
+        long? BookingItemId,
         string ServiceName,
         long? TaskerId,
         string? TaskerName,
-        DateTimeOffset StartAt, 
+        DateTimeOffset StartAt,
         DateTimeOffset EndAt,
         string FullAddress,
         decimal FinalAmount,

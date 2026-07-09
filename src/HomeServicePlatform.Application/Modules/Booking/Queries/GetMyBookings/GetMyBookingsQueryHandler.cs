@@ -38,6 +38,7 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings
                                                 .Where(i => i.BookingId == b.BookingId)
                                                 .Select(i => new
                                                 {
+                                                    i.BookingItemId,
                                                     i.StartAt,
                                                     i.EndAt,
                                                     i.TaskerId,
@@ -55,6 +56,7 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings
                 .OrderByDescending(q => q.Booking.CreatedAt) // Đơn mới nhất lên đầu
                 .Select(q => new MyBookingDto(
                     q.Booking.BookingId,
+                    q.FirstItem != null ? q.FirstItem.BookingItemId : (long?)null,
                     q.FirstItem != null ? q.FirstItem.ServiceName : "Dịch vụ hệ thống",
                     q.FirstItem != null ? q.FirstItem.TaskerId : null,
                     q.FirstItem != null ? q.FirstItem.TaskerName : "Đang tìm thợ...",
