@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBookingByCustomer;
 using HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -35,6 +36,29 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             }
 
             var result = await _mediator.Send(new GetMyBookingsQuery(customerId));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("{id:long}/cancel")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> CancelMyBooking([FromRoute] long id, [FromBody] CancelBookingByCustomerCommand command)
+        {
+            // 🛡️ Tự bóc tách ID của Khách hàng từ mã Token đã phân mã đăng nhập
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long customerId))
+            {
+                return Unauthorized();
+            }
+
+            // 🔒 CHỐNG ID-SPOOFING: Đè chặt BookingId từ Route URL và CustomerId từ Token vào Command
+            var securedCommand = command with
+            {
+                BookingId = id,
+                CustomerId = customerId
+            };
+
+            var result = await _mediator.Send(securedCommand);
             return StatusCode(result.StatusCode, result);
         }
     }
