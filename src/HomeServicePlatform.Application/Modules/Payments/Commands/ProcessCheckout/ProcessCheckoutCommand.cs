@@ -17,6 +17,7 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
 
     // Dữ liệu tiếp nhận yêu cầu thanh toán từ Client gửi lên
     public record ProcessCheckoutCommand(
+        long CustomerId,
         long BookingId,
         decimal Amount,
         PaymentMethod Method // 1: SystemWallet, 2: MoMo, 3: ZaloPay, 4: VNPAY, 5: Cash
