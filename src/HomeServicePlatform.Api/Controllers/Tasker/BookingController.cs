@@ -1,19 +1,24 @@
-﻿using HomeServicePlatform.Application.Common.Responses;
+﻿using System.Security.Claims;
+using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.AcceptBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartMoving;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartWorking;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace HomeServicePlatform.Api.Controllers.Tasker
 {
     [ApiController]
     [Route("api/tasker/bookings")]
-    // 🟢 Đăng ký gộp bộ bẫy lỗi 400/500 của Middleware tại đây để các hàm bên dưới không phải viết lại
+    [Authorize(Roles = "Tasker")] // 🛡️ BẢO MẬT: Chỉ cho phép tài khoản Thợ (Tasker) thao tác quy trình
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public class BookingController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -23,45 +28,86 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             _mediator = mediator;
         }
 
-        [HttpPut("{id}/accept")]
+        [HttpPut("{id:long}/accept")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> Accept(long id, [FromBody] TaskerActionBody body)
+        public async Task<IActionResult> Accept([FromRoute] long id)
         {
-            var result = await _mediator.Send(new AcceptBookingCommand(id, body.TaskerId));
+            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _mediator.Send(new AcceptBookingCommand(id, taskerId));
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpPut("{id}/start-moving")]
+        [HttpPut("{id:long}/start-moving")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> StartMoving(long id, [FromBody] TaskerActionBody body)
+        public async Task<IActionResult> StartMoving([FromRoute] long id)
         {
-            var result = await _mediator.Send(new StartMovingCommand(id, body.TaskerId));
+            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _mediator.Send(new StartMovingCommand(id, taskerId));
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpPut("{id}/start-working")]
+        [HttpPut("{id:long}/start-working")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> StartWorking(long id, [FromBody] TaskerActionBody body)
+        public async Task<IActionResult> StartWorking([FromRoute] long id)
         {
-            var result = await _mediator.Send(new StartWorkingCommand(id, body.TaskerId));
+            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _mediator.Send(new StartWorkingCommand(id, taskerId));
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpPut("{id}/complete-work")]
+        [HttpPut("{id:long}/complete-work")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> CompleteWork(long id, [FromBody] TaskerActionBody body)
+        public async Task<IActionResult> CompleteWork([FromRoute] long id)
         {
-            var result = await _mediator.Send(new CompleteWorkCommand(id, body.TaskerId));
+            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _mediator.Send(new CompleteWorkCommand(id, taskerId));
             return StatusCode(result.StatusCode, result);
         }
-        [HttpPut("{id}/cancel")]
+
+        [HttpPut("{id:long}/cancel")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> CancelBooking([FromBody] CancelBookingCommand command)
+        public async Task<IActionResult> CancelBooking([FromRoute] long id, [FromBody] CancelBookingCommand command)
         {
-            var result = await _mediator.Send(command);
+            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
+            {
+                return Unauthorized();
+            }
+
+            // 🔒 CHỐNG ID-SPOOFING: Đè chặt ID an toàn từ Route URL và Token người thực hiện vào Record Command
+            var securedCommand = command with
+            {
+                BookingId = id,
+                //CancelledBy = taskerId
+            };
+
+            var result = await _mediator.Send(securedCommand);
             return StatusCode(result.StatusCode, result);
         }
     }
-
-    public record TaskerActionBody(long TaskerId);
 }

@@ -11,7 +11,7 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings
         string ServiceName,
         long? TaskerId,
         string? TaskerName,
-        DateTimeOffset StartAt, // 🟢 Sửa từ DateTime thành DateTimeOffset
+        DateTimeOffset StartAt, 
         DateTimeOffset EndAt,
         string FullAddress,
         decimal FinalAmount,
