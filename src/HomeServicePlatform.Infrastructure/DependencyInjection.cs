@@ -35,9 +35,10 @@ namespace HomeServicePlatform.Infrastructure
             services.AddScoped<IBookingRepository, BookingRepository>();
 
             services.AddScoped<IPaymentStrategy, WalletPaymentStrategy>();
-            //services.AddScoped<IPaymentStrategy, MoMoPaymentStrategy>();
-            //services.AddScoped<IPaymentStrategy, ZaloPayPaymentStrategy>();
             services.AddScoped<IPaymentStrategy, CashPaymentStrategy>();
+            // Cổng giả lập phục vụ demo (không cần merchant credentials).
+            services.AddScoped<IPaymentStrategy, MockMoMoPaymentStrategy>();
+            services.AddScoped<IPaymentStrategy, MockZaloPayPaymentStrategy>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
