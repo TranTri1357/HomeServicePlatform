@@ -67,6 +67,13 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Commands.CreateReview
             // Gọi hàm cập nhật điểm trung bình của Thợ (Rich Domain Model)
             bookingItem.TaskerProfile.UpdateRating(request.Rating);
 
+            // 🔔 Thông báo cho thợ: có đánh giá mới từ khách.
+            _context.Notifications.Add(Application.Common.Helpers.NotificationBuilder.Build(
+                bookingItem.TaskerId.Value,
+                Domain.Modules.Operations.Enum.NotificationType.NewReview,
+                "Bạn có đánh giá mới",
+                $"Khách vừa đánh giá {request.Rating}★ cho công việc của bạn."));
+
             await _context.SaveChangesAsync(ct);
 
             return ApiResponse<long>.Success(review.ReviewId, "Cảm ơn bạn đã gửi đánh giá!");

@@ -1,10 +1,12 @@
 using System.Threading;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using HomeServicePlatform.Domain.Modules.Bookings.Interface;
+using HomeServicePlatform.Domain.Modules.Operations.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +40,13 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.StartWorking
             try
             {
                 booking.StartWorkingByTasker(request.TaskerId);
+
+                _context.Notifications.Add(NotificationBuilder.Build(
+                    booking.CustomerId,
+                    NotificationType.WorkStarted,
+                    "Bắt đầu thực hiện",
+                    $"Thợ đã bắt đầu làm việc cho đơn BK{booking.BookingId}."));
+
                 await _bookingRepository.UpdateAggregateAsync(booking);
                 return ApiResponse<bool>.Success(true, "Dịch vụ đã chính thức bắt đầu triển khai.");
             }

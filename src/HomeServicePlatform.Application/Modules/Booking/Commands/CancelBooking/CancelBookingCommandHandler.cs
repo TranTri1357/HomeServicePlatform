@@ -5,11 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Operations.Entities;
 using MediatR;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
+using HomeServicePlatform.Domain.Modules.Operations.Enum;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
 {
@@ -70,6 +72,13 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                 CreatedAt = DateTimeOffset.UtcNow // 🟢 Thêm dấu phẩy vào cuối dòng này để hết lỗi cú pháp
             };
             _context.BookingHistories.Add(history);
+
+            // 🔔 Thông báo cho khách: thợ đã hủy đơn.
+            _context.Notifications.Add(NotificationBuilder.Build(
+                booking.CustomerId,
+                NotificationType.BookingCancelledByTasker,
+                "Đơn bị hủy",
+                $"Thợ đã hủy đơn BK{booking.BookingId}. Lý do: {request.CancelReason}"));
 
             // 5. Lưu toàn bộ thay đổi xuống database dưới dạng một Transaction bảo toàn dữ liệu
             await _context.SaveChangesAsync(cancellationToken);

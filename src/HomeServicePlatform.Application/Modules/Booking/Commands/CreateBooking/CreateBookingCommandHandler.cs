@@ -19,12 +19,14 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
     {
         private readonly IBookingRepository _bookingRepository;
         private readonly IUnitOfWork _unitOfWork; // 🟢 Tích hợp UnitOfWork quản lý Transaction gộp
+        private readonly IApplicationDbContext _context;
         private readonly GeometryFactory _geometryFactory;
 
-        public CreateBookingCommandHandler(IBookingRepository bookingRepository, IUnitOfWork unitOfWork)
+        public CreateBookingCommandHandler(IBookingRepository bookingRepository, IUnitOfWork unitOfWork, IApplicationDbContext context)
         {
             _bookingRepository = bookingRepository;
             _unitOfWork = unitOfWork;
+            _context = context;
             _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // Chuẩn WGS84 cho PostGIS
         }
 
@@ -110,8 +112,27 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
             // 6. Đưa Aggregate Root vào hàng chờ của Repository (Chưa thực thi xuống DB)
             await _bookingRepository.SaveAggregateAsync(booking);
 
-            // 7. Chốt hạ: UnitOfWork ra lệnh kích hoạt Transaction lưu đồng thời 4 bảng 
+            // 7. Chốt hạ: UnitOfWork ra lệnh kích hoạt Transaction lưu đồng thời 4 bảng
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // 7b. 🔔 Thông báo cho (các) thợ được khách chọn sẵn: có đơn mới.
+            var assignedTaskerIds = booking.BookingItems
+                .Where(bi => bi.TaskerId.HasValue)
+                .Select(bi => bi.TaskerId!.Value)
+                .Distinct()
+                .ToList();
+            if (assignedTaskerIds.Count > 0)
+            {
+                foreach (var taskerId in assignedTaskerIds)
+                {
+                    _context.Notifications.Add(Application.Common.Helpers.NotificationBuilder.Build(
+                        taskerId,
+                        Domain.Modules.Operations.Enum.NotificationType.NewBooking,
+                        "Bạn có đơn mới",
+                        $"Bạn có đơn đặt lịch mới (BK{booking.BookingId}). Hãy vào xác nhận."));
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }
 
             // 8. Đóng gói dữ liệu phản hồi tiêu chuẩn qua lớp gác cổng ApiResponse
             var responseData = new CreateBookingResponse(
