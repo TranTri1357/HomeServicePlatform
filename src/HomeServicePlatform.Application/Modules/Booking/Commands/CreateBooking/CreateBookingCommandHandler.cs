@@ -9,6 +9,7 @@ using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Entities;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using HomeServicePlatform.Domain.Modules.Bookings.Interface;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -55,7 +56,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
                 .Where(b => b.Status == BookingStatus.Pending
                             && b.CreatedAt < expiredThreshold
                             && !_context.Payments.Any(p => p.BookingId == b.BookingId
-                                                           && (p.Status == 1 || (p.Status == 0 && p.Method == 2))))
+                                                           && (p.Status == (short)PaymentStatus.Paid
+                                                               || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))))
                 .ToListAsync(cancellationToken);
 
             if (expiredHolds.Count > 0)

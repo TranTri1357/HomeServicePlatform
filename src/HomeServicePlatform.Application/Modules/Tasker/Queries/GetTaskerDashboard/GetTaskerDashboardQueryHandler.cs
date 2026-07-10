@@ -7,6 +7,7 @@ using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -54,7 +55,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerDashbo
                 && bi.Status != Cancelled
                 && bi.StartAt >= todayStartUtc && bi.StartAt < todayEndUtc
                 && _context.Payments.Any(p => p.BookingId == bi.BookingId
-                                              && (p.Status == 1 || (p.Status == 0 && p.Method == 2))), ct);
+                                              && (p.Status == (short)PaymentStatus.Paid
+                                                  || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))), ct);
 
             // Doanh thu tháng (các việc hoàn thành).
             var monthEarnings = await _context.BookingItems

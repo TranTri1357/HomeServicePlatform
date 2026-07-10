@@ -7,6 +7,7 @@ using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Payments.Entities;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,8 +46,8 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
                 BookingId = request.BookingId,
                 Amount = request.Amount,
                 Method = (short)request.Method,
-                // Nếu là ví nội bộ hệ thống thì status = 1 (Thành công ngay), các bên thứ 3 hoặc tiền mặt status = 0 (Pending)
-                Status = (short)(strategyResult.IsInstantSuccess ? 1 : 0),
+                // Ví nội bộ thành công ngay -> Paid(2); cổng thứ 3 / tiền mặt -> Pending(1) chờ xác nhận.
+                Status = (short)(strategyResult.IsInstantSuccess ? PaymentStatus.Paid : PaymentStatus.Pending),
                 TransactionCode = strategyResult.TransactionCode,
                 PaidAt = strategyResult.IsInstantSuccess ? now : null,
                 CreatedAt = now,

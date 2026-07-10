@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
@@ -38,7 +39,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
             //     Đơn mới "giữ chỗ" chưa qua thanh toán (không có payment) không được lộ cho thợ.
             sourceQuery = sourceQuery.Where(q =>
                 _context.Payments.Any(p => p.BookingId == q.b.BookingId
-                                           && (p.Status == 1 || (p.Status == 0 && p.Method == 2))));
+                                           && (p.Status == (short)PaymentStatus.Paid
+                                               || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))));
 
             // 2. 🟢 CHỌN LỌC HOẶC KHÔNG LỌC:
             // Nếu có truyền status -> Thêm điều kiện lọc. Nếu để trống -> Bỏ qua và lấy TẤT CẢ.
