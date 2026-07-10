@@ -11,7 +11,7 @@ namespace HomeServicePlatform.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/disputes")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")] // Đồng nhất quyền với các trang quản trị khác
     public class AdminDisputeController : ControllerBase
     {
         private readonly IMediator _mediator;

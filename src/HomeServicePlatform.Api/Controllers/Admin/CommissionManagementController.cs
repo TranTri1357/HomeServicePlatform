@@ -14,7 +14,7 @@ namespace HomeServicePlatform.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/commissions")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")] // Đồng nhất quyền với các trang quản trị khác
     public class CommissionManagementController : ControllerBase
     {
         private readonly IMediator _mediator;
