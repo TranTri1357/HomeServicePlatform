@@ -1,11 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings
@@ -21,54 +23,51 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings
 
         public async Task<ApiResponse<List<MyBookingDto>>> Handle(GetMyBookingsQuery request, CancellationToken cancellationToken)
         {
-            // 1. Khởi tạo Query kết hợp Explicit Join tối ưu hóa tốc độ quét Index
-            var query = from b in _context.Bookings
-                        where b.CustomerId == request.CustomerId
-
-                        // Left Join sang bảng địa chỉ đơn hàng
-                        join addr in _context.BookingAddresses on b.BookingId equals addr.BookingId into addrGroup
-                        from subAddr in addrGroup.DefaultIfEmpty()
-
-                        select new
-                        {
-                            Booking = b,
-                            Address = subAddr,
-                            // Gom dữ liệu từ bảng booking_items và map an toàn thông tin Thợ/Dịch vụ
-                            FirstItem = _context.BookingItems
-                                                .Where(i => i.BookingId == b.BookingId)
-                                                .Select(i => new
-                                                {
-                                                    i.BookingItemId,
-                                                    i.StartAt,
-                                                    i.EndAt,
-                                                    i.TaskerId,
-                                                    ServiceName = i.Service.Name,
-                                                    // Sử dụng toán tử kiểm tra Null an toàn tuyệt đối
-                                                    TaskerName = i.TaskerProfile != null && i.TaskerProfile.User != null
-                                                                 ? i.TaskerProfile.User.FullName
-                                                                 : "Đang tìm thợ..."
-                                                })
-                                                .FirstOrDefault()
-                        };
-
-            // 2. Thực thi Projection trực tiếp xuống SQL Server/PostgreSQL bằng lệnh Async
-            var result = await query
-                .OrderByDescending(q => q.Booking.CreatedAt) // Đơn mới nhất lên đầu
-                .Select(q => new MyBookingDto(
-                    q.Booking.BookingId,
-                    q.FirstItem != null ? q.FirstItem.BookingItemId : (long?)null,
-                    q.FirstItem != null ? q.FirstItem.ServiceName : "Dịch vụ hệ thống",
-                    q.FirstItem != null ? q.FirstItem.TaskerId : null,
-                    q.FirstItem != null ? q.FirstItem.TaskerName : "Đang tìm thợ...",
-                    q.FirstItem != null ? q.FirstItem.StartAt : q.Booking.CreatedAt,
-                    q.FirstItem != null ? q.FirstItem.EndAt : q.Booking.CreatedAt,
-                    q.Address != null
-                        ? $"{q.Address.AddressLine}, {q.Address.WardCode}" // Đã sửa biến chính xác sang 'q'
-                        : "Chưa cập nhật địa chỉ",
-                    q.Booking.FinalAmount,
-                    (short)q.Booking.Status
+            // Projection trực tiếp xuống SQL: mỗi đơn kèm danh sách hạng mục (nhiều dịch vụ)
+            // và các cờ trạng thái dùng để bật/tắt nút ở giao diện khách hàng.
+            var result = await _context.Bookings
+                .Where(b => b.CustomerId == request.CustomerId)
+                .OrderByDescending(b => b.CreatedAt) // Đơn mới nhất lên đầu
+                .Select(b => new MyBookingDto(
+                    b.BookingId,
+                    // Left join địa chỉ đơn hàng (một đơn chỉ có một địa chỉ).
+                    _context.BookingAddresses
+                        .Where(a => a.BookingId == b.BookingId)
+                        .Select(a => a.AddressLine + ", " + a.WardCode)
+                        .FirstOrDefault() ?? "Chưa cập nhật địa chỉ",
+                    b.SubtotalAmount,
+                    b.DiscountAmount,
+                    b.FinalAmount,
+                    b.Note,
+                    b.CreatedAt,
+                    (short)b.Status,
+                    // Đã thanh toán = tồn tại giao dịch Payment ở trạng thái Paid.
+                    _context.Payments.Any(p => p.BookingId == b.BookingId && p.Status == (short)PaymentStatus.Paid),
+                    // Đã khiếu nại = tồn tại bản ghi Dispute cho đơn.
+                    _context.Disputes.Any(d => d.BookingId == b.BookingId),
+                    // Toàn bộ hạng mục của đơn (một hoặc nhiều dịch vụ).
+                    _context.BookingItems
+                        .Where(i => i.BookingId == b.BookingId)
+                        .OrderBy(i => i.BookingItemId)
+                        .Select(i => new MyBookingItemDto(
+                            i.BookingItemId,
+                            i.Service.Name,
+                            i.TaskerId,
+                            i.TaskerProfile != null && i.TaskerProfile.User != null
+                                ? i.TaskerProfile.User.FullName
+                                : "Đang tìm thợ...",
+                            i.StartAt,
+                            i.EndAt,
+                            i.Quantity,
+                            i.UnitPrice,
+                            i.TotalPrice,
+                            i.Status,
+                            // Đã đánh giá = tồn tại Review chưa bị xóa cho hạng mục này.
+                            _context.Reviews.Any(r => r.BookingItemId == i.BookingItemId && !r.IsDeleted)
+                        ))
+                        .ToList()
                 ))
-                .ToListAsync(cancellationToken); // 🟢 Kích hoạt bất đồng bộ, giải phóng Thread hệ thống
+                .ToListAsync(cancellationToken);
 
             return ApiResponse<List<MyBookingDto>>.Success(result, "Lấy lịch sử đơn đặt lịch thành công.");
         }
