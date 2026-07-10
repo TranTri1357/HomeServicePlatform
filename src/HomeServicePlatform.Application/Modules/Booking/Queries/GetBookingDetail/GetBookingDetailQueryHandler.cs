@@ -1,68 +1,69 @@
-﻿//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System.Text;
-//using System.Threading.Tasks;
-//using HomeServicePlatform.Application.Common.Exceptions;
-//using HomeServicePlatform.Application.Common.Interfaces;
-//using HomeServicePlatform.Application.Common.Responses;
-//using MediatR;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Responses;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 
-//namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetBookingDetail
-//{
-//    public class GetBookingDetailQueryHandler : IRequestHandler<GetBookingDetailQuery, ApiResponse<BookingDetailDto>>
-//    {
-//        private readonly IApplicationDbContext _context;
+namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetBookingDetail
+{
+    public class GetBookingDetailQueryHandler : IRequestHandler<GetBookingDetailQuery, ApiResponse<BookingDetailDto>>
+    {
+        private readonly IApplicationDbContext _context;
 
-//        public GetBookingDetailQueryHandler(IApplicationDbContext context)
-//        {
-//            _context = context;
-//        }
+        public GetBookingDetailQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
-//        public async Task<ApiResponse<BookingDetailDto>> Handle(GetBookingDetailQuery request, CancellationToken cancellationToken)
-//        {
-//            // 🟢 TỐI ƯU DOANH NGHIỆP: Sử dụng một câu lệnh duy nhất để chiếu (Select) thẳng về DTO
-//            // Cơ chế này giúp sinh ra câu lệnh SQL SELECT tường minh cột, cực kỳ nhẹ cho Database
-//            var bookingDetail = await (
-//                from b in _context.Bookings
-//                where b.BookingId == request.BookingId && !b.IsDeleted
+        public async Task<ApiResponse<BookingDetailDto>> Handle(GetBookingDetailQuery request, CancellationToken ct)
+        {
+            var booking = await _context.Bookings
+                .AsNoTracking()
+                .Include(b => b.Customer)
+                .Include(b => b.BookingAddress)
+                .FirstOrDefaultAsync(b => b.BookingId == request.BookingId, ct);
 
-//                // Join lấy thông tin khách hàng đặt đơn (Inner Join vì đơn phải có khách)
-//                join cust in _context.Users on b.CustomerId equals cust.UserId
+            if (booking == null)
+                throw new NotFoundException($"Không tìm thấy dữ liệu chi tiết cho đơn hàng số #{request.BookingId}");
 
-//                // Left Join lấy thông tin địa chỉ đơn hàng (Phòng hờ trường hợp dữ liệu address bị lỗi)
-//                join addr in _context.BookingAddresses on b.BookingId equals addr.BookingId into addrGroup
-//                from subAddr in addrGroup.DefaultIfEmpty()
+            // Thợ của item đầu tiên (TaskerId = TaskerProfileId = UserId).
+            var firstTaskerId = await _context.BookingItems
+                .AsNoTracking()
+                .Where(i => i.BookingId == request.BookingId && i.TaskerId != null)
+                .OrderBy(i => i.BookingItemId)
+                .Select(i => i.TaskerId)
+                .FirstOrDefaultAsync(ct);
 
-//                    // Nghiệp vụ: Lấy tên thợ thực hiện. 
-//                    // Do thợ được phân bổ ở bảng BookingItem, ta lấy thợ của item đầu tiên (hoặc xử lý theo cấu hình hệ thống của bạn)
-//                join item in _context.BookingItems on b.BookingId equals item.BookingId into itemGroup
-//                from subItem in itemGroup.Take(1).DefaultIfEmpty()
+            string? taskerName = null;
+            if (firstTaskerId != null)
+            {
+                taskerName = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => u.UserId == firstTaskerId)
+                    .Select(u => u.FullName)
+                    .FirstOrDefaultAsync(ct);
+            }
 
-//                    // Left Join tiếp từ item sang bảng Users để bốc tên của Thợ (Tasker)
-//                join tasker in _context.Users on subItem.TaskerId equals tasker.UserId into taskerGroup
-//                from subTasker in taskerGroup.DefaultIfEmpty()
+            var addr = booking.BookingAddress;
 
-//                select new BookingDetailDto(
-//                    b.BookingId,
-//                    cust.FullName,
-//                    subTasker != null ? subTasker.FullName : "Hệ thống đang điều phối thợ...", // Xử lý hiển thị an toàn khi chưa có thợ
-//                    (short)b.Status,
-//                    b.SubtotalAmount,
-//                    b.DiscountAmount,
-//                    b.FinalAmount,
-//                    b.CreatedAt.UtcDateTime, // Đưa về chuẩn hiển thị của C# DateTime
-//                    subAddr != null ? $"{subAddr.AddressLine}, {subAddr.WardCode}" : "Chưa cập nhật địa chỉ"
-//                )
-//            ).FirstOrDefaultAsync(cancellationToken);
+            var dto = new BookingDetailDto(
+                booking.BookingId,
+                booking.Customer.FullName,
+                addr?.FullName ?? booking.Customer.FullName,
+                addr?.Phone ?? "",
+                taskerName,
+                (short)booking.Status,
+                booking.SubtotalAmount,
+                booking.DiscountAmount ?? 0m,
+                booking.FinalAmount,
+                booking.Note,
+                booking.CreatedAt,
+                addr != null ? $"{addr.AddressLine}, {addr.WardCode}" : "Chưa cập nhật địa chỉ");
 
-//            // Bẫy lỗi bảo vệ hệ thống nếu ID đơn không tồn tại hoặc đã bị xóa mềm trước đó
-//            if (bookingDetail == null)
-//            {
-//                throw new NotFoundException($"Không tìm thấy dữ liệu chi tiết cho đơn hàng số #{request.BookingId}");
-//            }
-
-//            return ApiResponse<BookingDetailDto>.Success(bookingDetail, "Tải dữ liệu đơn hàng thành công.");
-//        }
-//    }
-//}
+            return ApiResponse<BookingDetailDto>.Success(dto, "Tải dữ liệu đơn hàng thành công.");
+        }
+    }
+}

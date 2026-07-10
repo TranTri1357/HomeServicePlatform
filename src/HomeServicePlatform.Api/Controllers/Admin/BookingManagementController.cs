@@ -4,6 +4,7 @@ using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.UpdateBookingStatus;
 using HomeServicePlatform.Application.Modules.Booking.Queries.GetAllBookings;
+using HomeServicePlatform.Application.Modules.Booking.Queries.GetBookingDetail;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -27,6 +28,15 @@ namespace HomeServicePlatform.Api.Controllers.Admin
         {
         
             var result = await _mediator.Send(query);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:long}")]
+        [ProducesResponseType(typeof(ApiResponse<BookingDetailDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetDetail([FromRoute] long id)
+        {
+            var result = await _mediator.Send(new GetBookingDetailQuery(id));
             return StatusCode(result.StatusCode, result);
         }
 

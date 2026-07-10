@@ -1,20 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetBookingDetail
 {
     public record BookingDetailDto(
         long BookingId,
         string CustomerName,      // Tên khách hàng đặt đơn
-        string? TaskerName,       // Tên thợ thực hiện (Có thể null nếu đơn chưa có thợ)
-        short Status,             // Trạng thái đơn hàng (0: Pending, 1: Accepted,...)
+        string ContactName,       // Tên người nhận trên đơn
+        string ContactPhone,      // SĐT liên hệ trên đơn
+        string? TaskerName,       // Tên thợ thực hiện (null nếu chưa có thợ)
+        short Status,             // Trạng thái đơn (0..6)
         decimal SubtotalAmount,   // Giá gốc trước giảm
-        decimal DiscountAmount,   // Số tiền giảm giá
-        decimal FinalAmount,       // Số tiền thực tế khách phải trả
-        DateTime CreatedAt,       // Ngày thực hiện tạo đơn (Múi giờ UTC)
+        decimal DiscountAmount,   // Số tiền giảm
+        decimal FinalAmount,      // Số tiền khách phải trả
+        string? Note,             // Ghi chú của khách
+        DateTimeOffset CreatedAt, // Ngày tạo đơn
         string FullAddress        // Địa chỉ thực hiện dịch vụ
     );
 }
