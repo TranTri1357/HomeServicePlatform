@@ -1,5 +1,6 @@
 ﻿using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Tasker.Commands.CreateTaskerProfile;
+using HomeServicePlatform.Application.Modules.Tasker.Commands.UpdateTaskerProfile;
 using HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfile;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -29,6 +30,16 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
 
         [HttpPost]
         public async Task<IActionResult> CreateProfile([FromBody] CreateTaskerProfileCommand command)
+        {
+            command.UserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var result = await _mediator.Send(command);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>Thợ tự cập nhật thông tin tài khoản của mình.</summary>
+        [HttpPut]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateTaskerProfileCommand command)
         {
             command.UserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var result = await _mediator.Send(command);

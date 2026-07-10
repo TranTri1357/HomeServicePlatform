@@ -15,6 +15,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfil
         decimal RatingAvg,
         int TotalReviews,
         int CompletedJobsCount, // Số lượng việc đã thực hiện dựa trên bookingitem
-        short Status
+        short Status,
+        string? Bio
     );
 }

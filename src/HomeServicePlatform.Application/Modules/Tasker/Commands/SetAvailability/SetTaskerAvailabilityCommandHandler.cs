@@ -26,8 +26,17 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.SetAvailabilit
             if (profile == null)
                 throw new NotFoundException("Không tìm thấy hồ sơ thợ.");
 
-            // 1 = đang nhận việc (hiện trong tìm thợ gần), 0 = tạm nghỉ (ẩn).
-            profile.Status = (short)(request.IsAvailable ? 1 : 0);
+            // Hồ sơ chưa được duyệt (Status 0 / chưa xác minh) không được tự bật nhận việc —
+            // tránh việc thợ tự "nhảy cóc" qua bước admin phê duyệt.
+            if (!profile.IsVerified || profile.Status == 0)
+                throw new BadRequestException("Hồ sơ chưa được duyệt, chưa thể nhận việc. Vui lòng chờ quản trị viên phê duyệt.");
+
+            // Bị admin khóa (Status 2) thì thợ không thể tự mở lại.
+            if (profile.Status == 2)
+                throw new BadRequestException("Hồ sơ đang bị khóa bởi quản trị viên.");
+
+            // 1 = đang nhận việc (hiện trong tìm thợ gần), 3 = tạm nghỉ (ẩn, KHÁC với 0 = chờ duyệt).
+            profile.Status = (short)(request.IsAvailable ? 1 : 3);
             await _context.SaveChangesAsync(ct);
 
             return ApiResponse<bool>.Success(request.IsAvailable, request.IsAvailable
