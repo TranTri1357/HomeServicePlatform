@@ -33,6 +33,13 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
                               from subAddr in addrGroup.DefaultIfEmpty()
                               select new { item, b, cust, s, subAddr };
 
+            // 1b. 🔒 LUỒNG CÁCH 2: Chỉ hiện cho thợ những đơn ĐÃ CHỐT — tức đã thanh toán thành công
+            //     (Status==1) HOẶC đơn tiền mặt trả-khi-hoàn-thành (Status==0 & Method==Cash(2)).
+            //     Đơn mới "giữ chỗ" chưa qua thanh toán (không có payment) không được lộ cho thợ.
+            sourceQuery = sourceQuery.Where(q =>
+                _context.Payments.Any(p => p.BookingId == q.b.BookingId
+                                           && (p.Status == 1 || (p.Status == 0 && p.Method == 2))));
+
             // 2. 🟢 CHỌN LỌC HOẶC KHÔNG LỌC:
             // Nếu có truyền status -> Thêm điều kiện lọc. Nếu để trống -> Bỏ qua và lấy TẤT CẢ.
             if (request.Status.HasValue)

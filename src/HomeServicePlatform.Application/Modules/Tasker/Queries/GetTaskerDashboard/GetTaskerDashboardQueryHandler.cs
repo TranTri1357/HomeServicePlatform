@@ -47,11 +47,14 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerDashbo
             var weekStartUtc = new DateTimeOffset(weekStartVn, VnOffset).ToUniversalTime();
             var monthStartUtc = new DateTimeOffset(monthStartVn, VnOffset).ToUniversalTime();
 
-            // Số việc có lịch hôm nay (chưa hủy).
+            // Số việc có lịch hôm nay (chưa hủy, và ĐÃ CHỐT: đã thanh toán hoặc tiền mặt) —
+            // không tính đơn mới "giữ chỗ" chưa qua thanh toán.
             var todayJobsCount = await _context.BookingItems.CountAsync(bi =>
                 bi.TaskerId == request.TaskerId
                 && bi.Status != Cancelled
-                && bi.StartAt >= todayStartUtc && bi.StartAt < todayEndUtc, ct);
+                && bi.StartAt >= todayStartUtc && bi.StartAt < todayEndUtc
+                && _context.Payments.Any(p => p.BookingId == bi.BookingId
+                                              && (p.Status == 1 || (p.Status == 0 && p.Method == 2))), ct);
 
             // Doanh thu tháng (các việc hoàn thành).
             var monthEarnings = await _context.BookingItems

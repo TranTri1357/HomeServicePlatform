@@ -55,6 +55,27 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
 
             _context.Payments.Add(payment);
 
+            // 4b. 🔔 Đơn đã "chốt" ngay tại bước này -> báo cho (các) thợ được chọn: có đơn mới.
+            //     Gồm: ví nội bộ thành công ngay, hoặc tiền mặt (trả khi hoàn thành).
+            //     Cổng demo (MoMo/ZaloPay) chưa thành công ở đây; thông báo sẽ bắn khi ConfirmMockPayment.
+            if (strategyResult.IsInstantSuccess || (short)request.Method == 2)
+            {
+                var taskerIds = await _context.BookingItems
+                    .Where(bi => bi.BookingId == request.BookingId && bi.TaskerId != null)
+                    .Select(bi => bi.TaskerId!.Value)
+                    .Distinct()
+                    .ToListAsync(ct);
+
+                foreach (var taskerId in taskerIds)
+                {
+                    _context.Notifications.Add(Common.Helpers.NotificationBuilder.Build(
+                        taskerId,
+                        Domain.Modules.Operations.Enum.NotificationType.NewBooking,
+                        "Bạn có đơn mới",
+                        $"Bạn có đơn đặt lịch mới (BK{request.BookingId}) đã thanh toán. Hãy vào xác nhận."));
+                }
+            }
+
             // 5. Cập nhật đồng bộ trạng thái đơn hàng (Booking) ngay lập tức nếu thanh toán bằng ví nội bộ thành công
             //if (strategyResult.IsInstantSuccess)
             //{

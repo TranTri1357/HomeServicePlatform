@@ -1,6 +1,8 @@
 ﻿using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearbyTaskers;
+using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerAvailability;
 using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerDetail;
 using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerQuickInfo;
+using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerServiceOptions;
 using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTopTaskers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -26,6 +28,24 @@ namespace HomeServicePlatform.Api.Controllers.Public
         {
             var query = new GetTaskerDetailQuery { TaskerId = id };
             var result = await _mediator.Send(query);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>Danh sách dịch vụ + giá của thợ (cho khách chọn khi đặt lịch).</summary>
+        [HttpGet("{id}/services")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTaskerServices(long id)
+        {
+            var result = await _mediator.Send(new GetTaskerServiceOptionsQuery(id));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>Khung giờ trống của thợ trong một ngày (cho khách chọn lịch hẹn).</summary>
+        [HttpGet("{id}/availability")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAvailability(long id, [FromQuery] DateOnly date)
+        {
+            var result = await _mediator.Send(new GetTaskerAvailabilityQuery(id, date));
             return StatusCode(result.StatusCode, result);
         }
 

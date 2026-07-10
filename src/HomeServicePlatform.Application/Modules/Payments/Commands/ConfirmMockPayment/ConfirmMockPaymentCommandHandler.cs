@@ -42,6 +42,9 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ConfirmMockP
             {
                 payment.Status = (short)PaymentStatus.Paid;
                 payment.PaidAt = now;
+
+                // 🔔 Thanh toán (cổng demo) thành công -> báo cho (các) thợ được chọn: có đơn mới cần xác nhận.
+                await NotifyAssignedTaskersAsync(payment.BookingId, ct);
             }
             else
             {
@@ -54,6 +57,25 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ConfirmMockP
             return request.Success
                 ? ApiResponse<bool>.Success(true, "Thanh toán (giả lập) thành công.")
                 : ApiResponse<bool>.Success(false, "Đã hủy giao dịch thanh toán.");
+        }
+
+        // Gửi thông báo "có đơn mới" tới tất cả thợ được khách chọn sẵn trong đơn.
+        private async Task NotifyAssignedTaskersAsync(long bookingId, CancellationToken ct)
+        {
+            var taskerIds = await _context.BookingItems
+                .Where(bi => bi.BookingId == bookingId && bi.TaskerId != null)
+                .Select(bi => bi.TaskerId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
+            foreach (var taskerId in taskerIds)
+            {
+                _context.Notifications.Add(Common.Helpers.NotificationBuilder.Build(
+                    taskerId,
+                    Domain.Modules.Operations.Enum.NotificationType.NewBooking,
+                    "Bạn có đơn mới",
+                    $"Bạn có đơn đặt lịch mới (BK{bookingId}) đã thanh toán. Hãy vào xác nhận."));
+            }
         }
     }
 }

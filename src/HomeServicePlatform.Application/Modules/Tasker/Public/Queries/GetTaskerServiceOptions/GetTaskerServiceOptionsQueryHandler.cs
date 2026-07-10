@@ -1,0 +1,40 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Responses;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerServiceOptions
+{
+    public class GetTaskerServiceOptionsQueryHandler
+        : IRequestHandler<GetTaskerServiceOptionsQuery, ApiResponse<List<TaskerServiceOptionDto>>>
+    {
+        private readonly IApplicationDbContext _context;
+        public GetTaskerServiceOptionsQueryHandler(IApplicationDbContext context) => _context = context;
+
+        public async Task<ApiResponse<List<TaskerServiceOptionDto>>> Handle(GetTaskerServiceOptionsQuery request, CancellationToken ct)
+        {
+            var query = from ts in _context.TaskerServices
+                        where ts.TaskerId == request.TaskerId
+                        join s in _context.Services on ts.ServiceId equals s.ServiceId
+                        where s.IsActive && !s.IsDeleted
+                        join c in _context.Categories on s.CategoryId equals c.CategoryId
+                        join p in _context.TaskerServicePrices
+                            on new { ts.TaskerId, ts.ServiceId } equals new { p.TaskerId, p.ServiceId } into priceGroup
+                        from price in priceGroup.Where(x => x.EffectiveTo == null).DefaultIfEmpty()
+                        select new TaskerServiceOptionDto(
+                            s.ServiceId,
+                            s.Name,
+                            c.Name,
+                            price != null ? price.Price : 0m,
+                            s.DurationMinutes);
+
+            var items = await query.ToListAsync(ct);
+
+            return ApiResponse<List<TaskerServiceOptionDto>>.Success(items, "Lấy dịch vụ của thợ thành công.");
+        }
+    }
+}

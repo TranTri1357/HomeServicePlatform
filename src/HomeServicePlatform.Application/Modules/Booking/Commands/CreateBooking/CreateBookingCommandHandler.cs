@@ -11,12 +11,16 @@ using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using HomeServicePlatform.Domain.Modules.Bookings.Interface;
 
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
 {
     public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, ApiResponse<CreateBookingResponse>>
     {
+        // ⏳ Thời gian giữ chỗ (TTL): đơn tạo xong mà không thanh toán trong khoảng này thì tự nhả slot.
+        private static readonly TimeSpan HoldTtl = TimeSpan.FromMinutes(15);
+
         private readonly IBookingRepository _bookingRepository;
         private readonly IUnitOfWork _unitOfWork; // 🟢 Tích hợp UnitOfWork quản lý Transaction gộp
         private readonly IApplicationDbContext _context;
@@ -36,6 +40,37 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
             if (request.BookingItems == null || !request.BookingItems.Any())
             {
                 throw new BadRequestException("Đơn đặt lịch bắt buộc phải có ít nhất một hạng mục dịch vụ.");
+            }
+
+            var nowUtc = DateTimeOffset.UtcNow;
+
+            // 1b. ♻️ NHẢ CHỖ GIỮ HẾT HẠN (TTL): những đơn còn Pending, quá 15 phút mà chưa có
+            //     thanh toán thành công thì coi như bỏ dở -> hủy để trả slot cho người khác đặt.
+            //     Bước này cũng giúp constraint chống trùng không bị "kẹt" bởi đơn treo bỏ dở.
+            // "Đã chốt" = có thanh toán thành công (Status==1) HOẶC đơn tiền mặt (Status==0 & Method==Cash(2)).
+            // Chỉ nhả những đơn Pending quá hạn mà CHƯA chốt.
+            var expiredThreshold = nowUtc - HoldTtl;
+            var expiredHolds = await _context.Bookings
+                .Include(b => b.BookingItems)
+                .Where(b => b.Status == BookingStatus.Pending
+                            && b.CreatedAt < expiredThreshold
+                            && !_context.Payments.Any(p => p.BookingId == b.BookingId
+                                                           && (p.Status == 1 || (p.Status == 0 && p.Method == 2))))
+                .ToListAsync(cancellationToken);
+
+            if (expiredHolds.Count > 0)
+            {
+                foreach (var stale in expiredHolds)
+                {
+                    stale.Status = BookingStatus.Cancelled;
+                    stale.UpdatedAt = nowUtc;
+                    foreach (var it in stale.BookingItems)
+                    {
+                        it.Status = (short)BookingStatus.Cancelled;
+                        it.UpdatedAt = nowUtc;
+                    }
+                }
+                await _context.SaveChangesAsync(cancellationToken);
             }
 
             // 2. Khởi tạo đối tượng Root: Booking (Chưa gán tổng tiền)
@@ -112,27 +147,21 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
             // 6. Đưa Aggregate Root vào hàng chờ của Repository (Chưa thực thi xuống DB)
             await _bookingRepository.SaveAggregateAsync(booking);
 
-            // 7. Chốt hạ: UnitOfWork ra lệnh kích hoạt Transaction lưu đồng thời 4 bảng
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // 7b. 🔔 Thông báo cho (các) thợ được khách chọn sẵn: có đơn mới.
-            var assignedTaskerIds = booking.BookingItems
-                .Where(bi => bi.TaskerId.HasValue)
-                .Select(bi => bi.TaskerId!.Value)
-                .Distinct()
-                .ToList();
-            if (assignedTaskerIds.Count > 0)
+            // 7. Chốt hạ: UnitOfWork ra lệnh kích hoạt Transaction lưu đồng thời 4 bảng.
+            //    🛡️ Nếu slot vừa bị người khác giữ (đè lịch cùng thợ), CSDL bật exclusion
+            //    constraint (SQLSTATE 23P01) -> dịch thành lỗi nghiệp vụ thân thiện cho khách.
+            try
             {
-                foreach (var taskerId in assignedTaskerIds)
-                {
-                    _context.Notifications.Add(Application.Common.Helpers.NotificationBuilder.Build(
-                        taskerId,
-                        Domain.Modules.Operations.Enum.NotificationType.NewBooking,
-                        "Bạn có đơn mới",
-                        $"Bạn có đơn đặt lịch mới (BK{booking.BookingId}). Hãy vào xác nhận."));
-                }
-                await _context.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
+            catch (DbUpdateException ex) when (IsExclusionViolation(ex))
+            {
+                throw new BadRequestException(
+                    "Rất tiếc, khung giờ bạn chọn của thợ vừa có người khác đặt trước. Vui lòng chọn khung giờ hoặc thợ khác.");
+            }
+
+            // 🔔 Lưu ý luồng Cách 2: KHÔNG bắn thông báo cho thợ tại đây. Đơn lúc này mới chỉ
+            //    "giữ chỗ" (chưa thanh toán). Thông báo cho thợ được bắn ở bước Checkout thành công.
 
             // 8. Đóng gói dữ liệu phản hồi tiêu chuẩn qua lớp gác cổng ApiResponse
             var responseData = new CreateBookingResponse(
@@ -143,6 +172,19 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
             );
 
             return ApiResponse<CreateBookingResponse>.Success(responseData, "Khởi tạo đơn đặt lịch thành công.");
+        }
+
+        // Nhận diện lỗi vi phạm exclusion constraint (Postgres SQLSTATE 23P01) mà không cần
+        // Application layer phụ thuộc trực tiếp vào Npgsql — đọc thuộc tính SqlState qua reflection.
+        private static bool IsExclusionViolation(Exception ex)
+        {
+            for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+            {
+                var sqlState = inner.GetType().GetProperty("SqlState")?.GetValue(inner) as string;
+                if (sqlState == "23P01")
+                    return true;
+            }
+            return false;
         }
     }
 }
