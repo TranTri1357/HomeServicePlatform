@@ -40,6 +40,8 @@ namespace HomeServicePlatform.Api
 
             // Đặt đường dẫn để Client kết nối tới  /booking-hub
             app.MapHub<BookingHub>("/booking-hub");
+            // Hub chat theo đơn
+            app.MapHub<ChatHub>("/chat-hub");
 
             app.Run();
         }

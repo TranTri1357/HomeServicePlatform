@@ -87,6 +87,20 @@ namespace HomeServicePlatform.Api
 
                         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
                         await context.Response.WriteAsync(json);
+                    },
+
+                    // SignalR (WebSocket) không gửi được header Authorization,
+                    // nên lấy JWT từ query string ?access_token=... cho các Hub.
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (path.StartsWithSegments("/chat-hub") || path.StartsWithSegments("/booking-hub")))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
                     }
                 };
             });

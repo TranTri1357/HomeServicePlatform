@@ -48,6 +48,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Dispute> Disputes { get; set; }
+        public DbSet<Message> Messages { get; set; }
         #endregion
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

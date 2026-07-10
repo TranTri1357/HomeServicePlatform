@@ -41,6 +41,7 @@ namespace HomeServicePlatform.Application.Common.Interfaces
         DbSet<Review> Reviews { get; set; }
         DbSet<Notification> Notifications { get; set; }
         DbSet<Dispute> Disputes { get; set; }
+        DbSet<Message> Messages { get; set; }
 
         // Bắt buộc phải có hàm này để luồng Query có thể gọi CancellationToken nếu cần
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

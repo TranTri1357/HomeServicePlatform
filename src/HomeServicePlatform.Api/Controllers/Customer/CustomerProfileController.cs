@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Application.Modules.Customer.Commands.UpdateCustomerProfile;
 using HomeServicePlatform.Application.Modules.Customer.Queries.GetCustomerProfile;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -38,6 +39,28 @@ namespace HomeServicePlatform.Api.Controllers.Customer
 
             // Gửi customerId lấy từ Token đi để truy vấn thông tin Profile chính xác
             var result = await _mediator.Send(new GetCustomerProfileQuery(customerId));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// API cập nhật hồ sơ (họ tên + số điện thoại) của khách hàng đang đăng nhập.
+        /// </summary>
+        [HttpPut]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateCustomerProfileCommand command)
+        {
+            if (command == null)
+                return BadRequest("Dữ liệu cập nhật hồ sơ không được để trống.");
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long customerId))
+            {
+                return Unauthorized();
+            }
+
+            command.CustomerId = customerId; // 🔒 Ép từ Token, chặn giả mạo
+            var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }
     }
