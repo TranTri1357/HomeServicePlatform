@@ -37,7 +37,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
             // Nếu có truyền status -> Thêm điều kiện lọc. Nếu để trống -> Bỏ qua và lấy TẤT CẢ.
             if (request.Status.HasValue)
             {
-                sourceQuery = sourceQuery.Where(q => q.item.Status == request.Status.Value);
+                // Lọc theo trạng thái ĐƠN TỔNG (authoritative), khớp với hiển thị.
+                sourceQuery = sourceQuery.Where(q => (short)q.b.Status == request.Status.Value);
             }
 
             // 3. Sắp xếp theo thứ tự thời gian công việc gần nhất lên đầu
@@ -55,7 +56,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
                     q.item.EndAt,
                     q.subAddr != null ? $"{q.subAddr.AddressLine}, {q.subAddr.WardCode}" : "Chưa cập nhật địa chỉ",
                     q.item.TotalPrice,
-                    (short)q.item.Status
+                    (short)q.b.Status // Trạng thái đơn tổng (nguồn chuẩn), tránh lệch với item
                 ))
                 .ToListAsync(cancellationToken);
 

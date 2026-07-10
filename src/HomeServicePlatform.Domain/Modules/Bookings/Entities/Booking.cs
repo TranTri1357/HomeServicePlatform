@@ -102,6 +102,14 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
             this.Status = newStatus;
             this.UpdatedAt = DateTime.UtcNow;
 
+            // 🔄 Đồng bộ trạng thái cho toàn bộ hạng mục để danh sách việc của Thợ
+            // (đọc BookingItem.Status) không bị lệch với trạng thái đơn tổng.
+            foreach (var item in this.BookingItems)
+            {
+                item.Status = (short)newStatus;
+                item.UpdatedAt = DateTime.UtcNow;
+            }
+
             this.BookingHistories.Add(new BookingHistory
             {
                 BookingId = this.BookingId,
