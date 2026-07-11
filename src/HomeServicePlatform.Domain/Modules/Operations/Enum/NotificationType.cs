@@ -7,6 +7,7 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Enum
         NewBooking = 1,               // Khách đặt đơn mới cho thợ
         BookingCancelledByCustomer = 2, // Khách hủy đơn
         NewReview = 3,                // Khách đánh giá thợ
+        EmergencyBooking = 4,         // Khách gọi thợ khẩn cấp (đơn trực tiếp, cần phản hồi trong 30s)
 
         // Gửi cho Khách
         BookingAccepted = 10,         // Thợ nhận đơn

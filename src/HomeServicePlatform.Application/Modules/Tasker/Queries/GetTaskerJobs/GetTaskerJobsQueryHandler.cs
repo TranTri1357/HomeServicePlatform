@@ -59,11 +59,13 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
                     q.item.BookingItemId,
                     q.b.BookingId,
                     q.s.Name,
-                    q.cust.FullName,
-                    q.cust.Phone,
+                    // Tên + SĐT ưu tiên lấy từ thông tin liên hệ khách nhập lúc đặt lịch (BookingAddress),
+                    // fallback về tài khoản khách nếu đơn cũ chưa có BookingAddress.
+                    q.subAddr != null ? q.subAddr.FullName : q.cust.FullName,
+                    q.subAddr != null ? q.subAddr.Phone : q.cust.Phone,
                     q.item.StartAt,
                     q.item.EndAt,
-                    q.subAddr != null ? $"{q.subAddr.AddressLine}, {q.subAddr.WardCode}" : "Chưa cập nhật địa chỉ",
+                    q.subAddr != null ? q.subAddr.AddressLine : "Chưa cập nhật địa chỉ",
                     q.item.TotalPrice,
                     (short)q.b.Status // Trạng thái đơn tổng (nguồn chuẩn), tránh lệch với item
                 ))

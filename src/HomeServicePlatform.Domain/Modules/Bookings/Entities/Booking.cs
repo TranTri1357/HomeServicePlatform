@@ -23,6 +23,11 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
         public DateTimeOffset? UpdatedAt { get; set; }
         public int RowVersion { get; set; } = 1;
 
+        // 🚨 Đơn khẩn cấp: khách gọi trực tiếp 1 thợ đang rảnh gần đó, thợ có
+        // EmergencyExpiresAt (30s) để bấm nhận trước khi đơn hết hạn.
+        public bool IsEmergency { get; set; } = false;
+        public DateTimeOffset? EmergencyExpiresAt { get; set; }
+
         // Navigation Properties
         public virtual User Customer { get; set; } = null!;
         public virtual BookingAddress? BookingAddress { get; set; }

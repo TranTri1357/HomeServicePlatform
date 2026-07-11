@@ -29,6 +29,9 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Bookings
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.RowVersion).HasColumnName("row_version").HasDefaultValue(1).IsConcurrencyToken();
 
+            entity.Property(e => e.IsEmergency).HasColumnName("is_emergency").HasDefaultValue(false);
+            entity.Property(e => e.EmergencyExpiresAt).HasColumnName("emergency_expires_at");
+
             entity.HasOne(d => d.Customer).WithMany().HasForeignKey(d => d.CustomerId).HasConstraintName("fk_bookings_customer");
 
             entity.HasIndex(e => e.CustomerId).HasDatabaseName("ix_bookings_customer_id");
