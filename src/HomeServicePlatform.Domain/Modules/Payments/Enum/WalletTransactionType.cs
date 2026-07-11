@@ -5,6 +5,7 @@ namespace HomeServicePlatform.Domain.Modules.Payments.Enum
     {
         TopUp = 1,    // Nạp tiền vào ví (ghi có)
         Payment = 2,  // Thanh toán bằng ví (ghi nợ)
-        Refund = 3    // Hoàn tiền vào ví (ghi có)
+        Refund = 3,   // Hoàn tiền vào ví (ghi có)
+        Earning = 4   // Thu nhập thợ sau khi trừ hoa hồng (ghi có)
     }
 }
