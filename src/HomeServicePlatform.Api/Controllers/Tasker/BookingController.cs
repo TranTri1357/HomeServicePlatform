@@ -1,4 +1,6 @@
 ﻿using System.Security.Claims;
+using HomeServicePlatform.Api.Hubs;
+using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.AcceptBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking;
@@ -9,6 +11,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 
 namespace HomeServicePlatform.Api.Controllers.Tasker
@@ -22,10 +26,28 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
     public class BookingController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly IHubContext<BookingHub> _hub;
+        private readonly IApplicationDbContext _context;
 
-        public BookingController(IMediator mediator)
+        public BookingController(IMediator mediator, IHubContext<BookingHub> hub, IApplicationDbContext context)
         {
             _mediator = mediator;
+            _hub = hub;
+            _context = context;
+        }
+
+        // Bắn realtime trạng thái đơn mới nhất về cho khách hàng chủ đơn.
+        private async Task NotifyCustomerAsync(long bookingId)
+        {
+            var info = await _context.Bookings.AsNoTracking()
+                .Where(b => b.BookingId == bookingId)
+                .Select(b => new { b.CustomerId, Status = (short)b.Status })
+                .FirstOrDefaultAsync();
+
+            if (info == null) return;
+
+            await _hub.Clients.Group(BookingHub.UserGroup(info.CustomerId))
+                .SendAsync("ReceiveBookingStatus", new { bookingId, status = info.Status });
         }
 
         [HttpPut("{id:long}/accept")]
@@ -40,6 +62,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             }
 
             var result = await _mediator.Send(new AcceptBookingCommand(id, taskerId));
+            if (result.Succeeded) await NotifyCustomerAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -55,6 +78,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             }
 
             var result = await _mediator.Send(new StartMovingCommand(id, taskerId));
+            if (result.Succeeded) await NotifyCustomerAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -70,6 +94,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             }
 
             var result = await _mediator.Send(new StartWorkingCommand(id, taskerId));
+            if (result.Succeeded) await NotifyCustomerAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -85,6 +110,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             }
 
             var result = await _mediator.Send(new CompleteWorkCommand(id, taskerId));
+            if (result.Succeeded) await NotifyCustomerAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -107,6 +133,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             };
 
             var result = await _mediator.Send(securedCommand);
+            if (result.Succeeded) await NotifyCustomerAsync(id);
             return StatusCode(result.StatusCode, result);
         }
     }
