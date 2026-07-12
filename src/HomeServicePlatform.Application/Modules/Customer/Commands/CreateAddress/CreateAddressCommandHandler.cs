@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Customer.Entities;
@@ -51,6 +52,11 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.CreateAddres
             };
 
             _context.Addresses.Add(address);
+
+            // Thợ: địa chỉ mới trở thành mặc định → đồng bộ vị trí trên bản đồ.
+            if (makeDefault)
+                await TaskerLocationSync.SyncFromDefaultAsync(_context, request.CustomerId, geom, ct);
+
             await _context.SaveChangesAsync(ct);
 
             return ApiResponse<long>.Success(address.AddressId, "Thêm địa chỉ thành công.");
