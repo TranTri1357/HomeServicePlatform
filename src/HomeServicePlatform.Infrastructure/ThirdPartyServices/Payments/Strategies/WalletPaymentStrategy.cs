@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Domain.Modules.Payments.Entities;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
 
 namespace HomeServicePlatform.Infrastructure.ThirdPartyServices.Payments.Strategies
@@ -32,8 +33,23 @@ namespace HomeServicePlatform.Infrastructure.ThirdPartyServices.Payments.Strateg
             }
 
             // 3. Thực hiện trừ tiền trực tiếp trên thực thể ví
+            var balanceBefore = wallet.Balance;
             wallet.Balance -= amount;
             //wallet.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // 3b. Ghi lịch sử giao dịch ví (ghi nợ) cho lần thanh toán đơn này, để
+            //     màn "Ví của tôi" hiển thị biến động số dư khi đặt lịch. Lưu Amount
+            //     dương; dấu (-) do frontend hiển thị theo loại giao dịch. Bản ghi này
+            //     được lưu cùng SaveChangesAsync ở ProcessCheckoutCommandHandler.
+            wallet.WalletTransactions.Add(new WalletTransaction
+            {
+                Type = (short)WalletTransactionType.Payment,
+                Amount = amount,
+                BalanceBefore = balanceBefore,
+                BalanceAfter = wallet.Balance,
+                ReferenceId = bookingId,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
 
             // Sinh mã giao dịch nội bộ duy nhất
             string localTransactionCode = $"SYSWAL{DateTime.UtcNow:yyyyMMddHHmmss}{bookingId}";
