@@ -43,6 +43,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearb
                 .Select(t => new NearbyTaskerDto
                 {
                     TaskerId = t.TaskerProfileId,
+                    FullName = t.User.FullName,
                     Latitude = t.CurrentGeom!.Y,
                     Longitude = t.CurrentGeom.X,
                     Status = t.Status,
