@@ -8,6 +8,8 @@ using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
+using HomeServicePlatform.Domain.Modules.Payments.Entities;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -68,6 +70,34 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                             // Nếu từ chối (NewStatus = 2), hoàn trả đơn về trạng thái hoàn thành cũ
                             booking.Status = request.NewStatus == 1 ? BookingStatus.Refund : BookingStatus.Completed;
                             booking.UpdatedAt = now;
+                        }
+
+                        // 4b. 💸 HOÀN TIỀN: Admin đồng ý hoàn (NewStatus == 1) và có số tiền hoàn > 0
+                        //     -> cộng thẳng vào ví của NGƯỜI KHIẾU NẠI (RaisedById) kèm giao dịch
+                        //     loại Refund. Chặn re-resolve ở trên đảm bảo không hoàn 2 lần.
+                        decimal refundAmount = request.RefundAmount ?? 0m;
+                        if (request.NewStatus == 1 && refundAmount > 0m)
+                        {
+                            var wallet = await _context.Wallets
+                                .FirstOrDefaultAsync(w => w.UserId == dispute.RaisedById, ct);
+                            if (wallet == null)
+                            {
+                                wallet = new Wallet { UserId = dispute.RaisedById, Balance = 0m };
+                                _context.Wallets.Add(wallet);
+                            }
+
+                            var balanceBefore = wallet.Balance;
+                            wallet.Balance += refundAmount;
+
+                            wallet.WalletTransactions.Add(new WalletTransaction
+                            {
+                                Type = (short)WalletTransactionType.Refund,
+                                Amount = refundAmount,
+                                BalanceBefore = balanceBefore,
+                                BalanceAfter = wallet.Balance,
+                                ReferenceId = dispute.BookingId,
+                                CreatedAt = now
+                            });
                         }
 
                         // 5. Chốt gộp câu lệnh
