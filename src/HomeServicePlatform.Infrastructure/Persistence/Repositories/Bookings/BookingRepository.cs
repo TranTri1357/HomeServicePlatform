@@ -55,9 +55,12 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // EF Core sẽ tự theo dõi (track) các bản ghi mới được Add trong Collection để sinh lệnh INSERT
-                _context.Bookings.Update(booking);
-
+                // ⚠️ KHÔNG gọi _context.Bookings.Update(booking): booking được nạp ở chế
+                // độ tracking (GetByIdAsync), còn Update() đánh dấu CẢ graph là Modified —
+                // khiến BookingHistory mới (HistoryId = 0) bị hiểu nhầm là "cập nhật" →
+                // sinh UPDATE 0 dòng, im lặng không INSERT (bug mất lịch sử chuyển trạng thái).
+                // Chỉ cần SaveChanges: ChangeTracker tự nhận diện bản ghi mới trong collection
+                // là Added (INSERT) và các thay đổi trạng thái là Modified (UPDATE).
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
             }
