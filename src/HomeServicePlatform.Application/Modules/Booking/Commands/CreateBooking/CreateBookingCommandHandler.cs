@@ -146,14 +146,13 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
                 Geom = locationGeom
             };
 
-            // 6. Đưa Aggregate Root vào hàng chờ của Repository (Chưa thực thi xuống DB)
-            await _bookingRepository.SaveAggregateAsync(booking);
-
-            // 7. Chốt hạ: UnitOfWork ra lệnh kích hoạt Transaction lưu đồng thời 4 bảng.
-            //    🛡️ Nếu slot vừa bị người khác giữ (đè lịch cùng thợ), CSDL bật exclusion
-            //    constraint (SQLSTATE 23P01) -> dịch thành lỗi nghiệp vụ thân thiện cho khách.
+            // 6+7. Lưu Aggregate Root xuống DB rồi chốt. 🛡️ Việc INSERT thật sự nằm trong
+            //     SaveAggregateAsync, nên PHẢI bọc cả nó trong try/catch: nếu slot vừa bị người
+            //     khác giữ (đè lịch cùng thợ), CSDL bật exclusion constraint (SQLSTATE 23P01)
+            //     -> dịch thành lỗi nghiệp vụ thân thiện thay vì lỗi lưu EF thô.
             try
             {
+                await _bookingRepository.SaveAggregateAsync(booking);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))

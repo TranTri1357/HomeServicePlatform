@@ -85,6 +85,15 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
                         Summary = BuildSummary(g.Select(x => x.ServiceName))
                     });
 
+            // Số tiền hệ thống đã giữ cho mỗi đơn (Payment đã Paid: cọc/trả hết). Dùng để tách
+            // hoa hồng THẬT sàn khấu (held − net) khỏi tiền mặt thợ thu trực tiếp (gross − held).
+            var heldByBooking = await _context.Payments
+                .AsNoTracking()
+                .Where(p => bookingIds.Contains(p.BookingId) && p.Status == (short)PaymentStatus.Paid)
+                .GroupBy(p => p.BookingId)
+                .Select(g => new { BookingId = g.Key, Held = g.Sum(x => x.Amount) })
+                .ToDictionaryAsync(x => x.BookingId, x => x.Held, ct);
+
             var entries = new List<IncomeEntryDto>(txs.Count);
             foreach (var t in txs)
             {
@@ -99,16 +108,20 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
                         summary = info.Summary;
                     }
 
+                    decimal held = t.BookingId != null && heldByBooking.TryGetValue(t.BookingId.Value, out var h) ? h : 0m;
+                    decimal commission = Math.Max(0m, held - t.Net);   // hoa hồng thật (sàn khấu từ tiền giữ)
+                    decimal cash = Math.Max(0m, gross - held);         // tiền mặt thợ thu trực tiếp từ khách
+
                     entries.Add(new IncomeEntryDto(
                         t.TransactionId, t.Type, t.BookingId ?? 0, summary,
-                        gross, gross - t.Net, t.Net, t.BalanceAfter, t.CreatedAt));
+                        gross, commission, t.Net, held, cash, t.BalanceAfter, t.CreatedAt));
                 }
                 else
                 {
                     // Rút tiền / điều chỉnh...: không có gộp/hoa hồng, chỉ số tiền giao dịch.
                     entries.Add(new IncomeEntryDto(
                         t.TransactionId, t.Type, t.BookingId ?? 0, NonEarningLabel(t.Type),
-                        0m, 0m, t.Net, t.BalanceAfter, t.CreatedAt));
+                        0m, 0m, t.Net, 0m, 0m, t.BalanceAfter, t.CreatedAt));
                 }
             }
 
