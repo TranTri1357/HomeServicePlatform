@@ -46,6 +46,12 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                 StartingPrice = s.TaskerServicePrices
                     .Where(p => p.EffectiveTo == null || p.EffectiveTo > DateTimeOffset.UtcNow)
                     .Min(p => (decimal?)p.Price) ?? 0,
+                // Phương án (a): TB rating của các thợ cung cấp dịch vụ này, chỉ tính thợ
+                // ĐÃ có đánh giá (TotalReviews > 0) để RatingAvg=0 (chưa có) không kéo điểm.
+                AvgRating = s.TaskerServices
+                    .Where(ts => !ts.TaskerProfile.IsDeleted && ts.TaskerProfile.TotalReviews > 0)
+                    .Select(ts => (decimal?)ts.TaskerProfile.RatingAvg)
+                    .Average() ?? 0,
                 ImageUrl = null // Gắn URL ảnh mặc định ở đây nếu muốn
             });
 
@@ -55,10 +61,14 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
             if (request.MaxPrice.HasValue)
                 projectedQuery = projectedQuery.Where(s => s.StartingPrice <= request.MaxPrice.Value);
 
+            if (request.MinRating.HasValue)
+                projectedQuery = projectedQuery.Where(s => s.AvgRating >= request.MinRating.Value);
+
             projectedQuery = request.SortBy?.ToLower() switch
             {
                 "price_asc" => projectedQuery.OrderBy(s => s.StartingPrice),
                 "price_desc" => projectedQuery.OrderByDescending(s => s.StartingPrice),
+                "rating" => projectedQuery.OrderByDescending(s => s.AvgRating),
                 "popular" => projectedQuery.OrderByDescending(s => s.TotalBookings),
                 _ => projectedQuery.OrderByDescending(s => s.TotalBookings)
             };
