@@ -35,8 +35,12 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                 .Must(x => !x.MinPrice.HasValue || !x.MaxPrice.HasValue || x.MinPrice <= x.MaxPrice)
                 .WithMessage("Giá tối thiểu phải nhỏ hơn hoặc bằng giá tối đa.");
 
+            RuleFor(x => x.MinRating)
+                .InclusiveBetween(0, 5).When(x => x.MinRating.HasValue)
+                .WithMessage("Điểm đánh giá lọc phải nằm trong khoảng 0 đến 5.");
+
             RuleFor(x => x.SortBy)
-                .Must(sort => string.IsNullOrEmpty(sort) || new[] {"price_asc", "price_desc", "popular" }.Contains(sort.ToLower()))
+                .Must(sort => string.IsNullOrEmpty(sort) || new[] {"price_asc", "price_desc", "rating", "popular" }.Contains(sort.ToLower()))
                 .WithMessage("Tiêu chí sắp xếp không hợp lệ.");
         }
     }

@@ -17,6 +17,9 @@ namespace HomeServicePlatform.Application.Modules.Services.Dtos
 
         public decimal StartingPrice { get; set; }
 
+        /// <summary>Điểm đánh giá TB của các thợ (đã có review) cung cấp dịch vụ này; 0 = chưa có.</summary>
+        public decimal AvgRating { get; set; }
+
         public string? ImageUrl { get; set; }
     }
 }
