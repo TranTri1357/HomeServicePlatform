@@ -20,9 +20,11 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
         short Type,            // loại giao dịch (WalletTransactionType): 4=Earning, 5=Withdraw, 6=Adjustment...
         long BookingId,
         string ServiceSummary, // tên dịch vụ đại diện (đơn Earning) hoặc nhãn loại giao dịch
-        decimal Gross,         // giá gộp (trước hoa hồng) — chỉ có ý nghĩa với Earning
-        decimal Commission,    // hoa hồng đã trừ — chỉ có ý nghĩa với Earning
-        decimal Net,           // số tiền của giao dịch (ghi có/nợ theo loại)
+        decimal Gross,         // tổng giá đơn (trước hoa hồng) — chỉ có ý nghĩa với Earning
+        decimal Commission,    // hoa hồng THẬT sàn đã khấu — chỉ có ý nghĩa với Earning
+        decimal Net,           // số tiền của giao dịch ví (ghi có/nợ theo loại)
+        decimal HeldAmount,    // tiền hệ thống đã giữ cho đơn (cọc/trả hết) — Earning
+        decimal CashReceived,  // tiền mặt thợ thu trực tiếp = Gross − Held — Earning
         decimal BalanceAfter,
         DateTimeOffset CreatedAt
     );
