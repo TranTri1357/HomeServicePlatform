@@ -80,12 +80,25 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork
                 .Where(c => c.EffectiveFrom <= now && (c.EffectiveTo == null || c.EffectiveTo > now))
                 .ToListAsync(ct);
 
-            decimal netTotal = 0m;
+            // Hoa hồng của sàn tính trên TỔNG giá đơn (gross từng hạng mục).
+            decimal commissionTotal = 0m;
             foreach (var it in items)
             {
                 var rate = CommissionResolver.ResolveRate(commissions, it.ServiceId, taskerId, now);
-                netTotal += CommissionResolver.NetOf(it.TotalPrice, rate);
+                commissionTotal += CommissionResolver.CommissionOf(it.TotalPrice, rate);
             }
+
+            // Số tiền HỆ THỐNG thực sự giữ cho đơn này = tổng các khoản đã thanh toán thành
+            // công (vd: tiền cọc 30%, hoặc trả hết). Phần chưa thu qua hệ thống, thợ đã/đang
+            // nhận tiền mặt trực tiếp từ khách nên KHÔNG cộng lại vào ví (tránh tính 2 lần).
+            decimal heldAmount = await _context.Payments
+                .Where(p => p.BookingId == bookingId && p.Status == (short)PaymentStatus.Paid)
+                .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
+
+            // Thu nhập ghi vào ví = tiền sàn giữ − hoa hồng (sàn khấu hoa hồng từ khoản đã giữ,
+            // phần dư trả về ví thợ). Nếu ≤ 0 (vd đơn thuần tiền mặt, sàn chưa giữ đủ để khấu
+            // hoa hồng) thì không ghi có — thợ đã nhận tiền mặt trực tiếp.
+            decimal netTotal = heldAmount - commissionTotal;
 
             if (netTotal <= 0m) return;
 
