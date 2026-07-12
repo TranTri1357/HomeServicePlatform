@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using MediatR;
@@ -46,6 +47,10 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.UpdateAddres
                 foreach (var a in others) a.IsDefault = false;
                 address.IsDefault = true;
             }
+
+            // Thợ: nếu đang sửa chính địa chỉ mặc định → đồng bộ vị trí trên bản đồ.
+            if (address.IsDefault == true)
+                await TaskerLocationSync.SyncFromDefaultAsync(_context, request.CustomerId, address.Geom, ct);
 
             await _context.SaveChangesAsync(ct);
 

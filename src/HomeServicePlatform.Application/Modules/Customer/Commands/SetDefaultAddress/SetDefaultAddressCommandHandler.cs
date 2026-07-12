@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using MediatR;
@@ -30,6 +31,9 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.SetDefaultAd
 
             foreach (var a in addresses)
                 a.IsDefault = a.AddressId == request.AddressId;
+
+            // Thợ: đặt địa chỉ mặc định mới → đồng bộ vị trí trên bản đồ.
+            await TaskerLocationSync.SyncFromDefaultAsync(_context, request.CustomerId, target.Geom, ct);
 
             await _context.SaveChangesAsync(ct);
 
