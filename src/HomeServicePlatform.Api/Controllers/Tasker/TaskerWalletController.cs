@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Application.Modules.Tasker.Commands.WithdrawWallet;
 using HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -37,6 +38,23 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             if (!TryGetTaskerId(out var taskerId)) return Unauthorized();
 
             var result = await _mediator.Send(new GetTaskerIncomeQuery(taskerId, page, pageSize));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>Rút tiền khỏi ví thu nhập (demo: trừ thẳng số dư). Trả về số dư mới.</summary>
+        [HttpPost("withdraw")]
+        [ProducesResponseType(typeof(ApiResponse<decimal>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Withdraw([FromBody] WithdrawWalletCommand command)
+        {
+            if (command == null)
+                return BadRequest("Dữ liệu rút tiền không được để trống.");
+
+            if (!TryGetTaskerId(out var taskerId)) return Unauthorized();
+
+            command.TaskerId = taskerId; // 🔒 Ép từ Token, chặn giả mạo
+            var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }
     }
