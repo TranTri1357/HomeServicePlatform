@@ -150,7 +150,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             var securedCommand = command with
             {
                 BookingId = id,
-                //CancelledBy = taskerId
+                TaskerId = taskerId
             };
 
             var result = await _mediator.Send(securedCommand);

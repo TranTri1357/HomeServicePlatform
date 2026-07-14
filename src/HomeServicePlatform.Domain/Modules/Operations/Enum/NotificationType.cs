@@ -14,6 +14,7 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Enum
         TaskerOnTheWay = 11,          // Thợ đang đến
         WorkStarted = 12,             // Thợ bắt đầu làm
         WorkCompleted = 13,           // Hoàn thành công việc
-        BookingCancelledByTasker = 14 // Thợ hủy đơn
+        BookingCancelledByTasker = 14, // Thợ hủy đơn
+        RefundIssued = 15             // Đã hoàn tiền vào ví khách sau khi hủy đơn
     }
 }

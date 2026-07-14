@@ -22,6 +22,14 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
         public short Status { get; set; } = 0;
         public bool IsDeleted { get; set; } = false;
 
+        // 📊 Độ tin cậy (tách biệt hoàn toàn với RatingAvg - vốn chỉ phản ánh tay nghề
+        // qua đánh giá của khách). Hai chỉ số này KHÔNG trộn lẫn.
+        // CancelCount: tổng số lần THỢ chủ động hủy/không thực hiện.
+        // CompletedCount: tổng số đơn thợ đã hoàn thành.
+        // Reliability% (tính khi cần) = Completed / (Completed + Cancel) * 100.
+        public int CancelCount { get; set; } = 0;
+        public int CompletedCount { get; set; } = 0;
+
         public virtual User User { get; set; } = null!;
         public virtual ICollection<TaskerService> TaskerServices { get; set; } = new List<TaskerService>();
         public virtual ICollection<TaskerSchedule> TaskerSchedules { get; set; } = new List<TaskerSchedule>();
@@ -44,6 +52,18 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
         {
             Status = 0;
                         // Có thể thêm logic: Ghi log lý do khóa ở đây nếu bạn có bảng Log
+        }
+
+        /// <summary>Ghi nhận 1 lần thợ hủy đơn (hạ độ tin cậy, KHÔNG đụng tới RatingAvg).</summary>
+        public void RecordCancellation()
+        {
+            CancelCount++;
+        }
+
+        /// <summary>Ghi nhận 1 đơn hoàn thành (tăng độ tin cậy).</summary>
+        public void RecordCompletion()
+        {
+            CompletedCount++;
         }
 
         /// <summary>

@@ -41,6 +41,11 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork
 
                 await CreditTaskerEarningAsync(booking.BookingId, request.TaskerId, cancellationToken);
 
+                // 📈 Tăng độ tin cậy: đơn hoàn thành cộng vào CompletedCount của thợ.
+                var profile = await _context.TaskerProfiles
+                    .FirstOrDefaultAsync(t => t.TaskerProfileId == request.TaskerId, cancellationToken);
+                profile?.RecordCompletion();
+
                 _context.Notifications.Add(NotificationBuilder.Build(
                     booking.CustomerId,
                     NotificationType.WorkCompleted,

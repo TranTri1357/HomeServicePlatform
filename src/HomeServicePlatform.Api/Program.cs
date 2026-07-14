@@ -2,6 +2,7 @@
 using HomeServicePlatform.Api.Hubs;
 using HomeServicePlatform.Api.Middlewares;
 using HomeServicePlatform.Application;
+using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Infrastructure;
 using HomeServicePlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,10 @@ namespace HomeServicePlatform.Api
             builder.Services.AddApplicationServices();
             // Đăng kí cấu hình Infrastructure
             builder.Services.AddInfrastructureServices(builder.Configuration);
+
+            // Chính sách hủy/hoàn tiền — Admin chỉnh qua section "RefundPolicy" trong appsettings.
+            builder.Services.Configure<RefundPolicyOptions>(
+                builder.Configuration.GetSection(RefundPolicyOptions.SectionName));
 
             var app = builder.Build();
 

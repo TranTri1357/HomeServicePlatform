@@ -4,6 +4,7 @@ using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBookingByCustomer;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergencyBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergencyBooking;
+using HomeServicePlatform.Application.Modules.Booking.Queries.GetCancellationPreview;
 using HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -42,6 +43,22 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             }
 
             var result = await _mediator.Send(new GetMyBookingsQuery(customerId));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        // 👁️ Xem trước số tiền được hoàn / phí hủy TRƯỚC khi khách bấm hủy (không ghi DB).
+        [HttpGet("{id:long}/cancellation-preview")]
+        [ProducesResponseType(typeof(ApiResponse<CancellationPreviewDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetCancellationPreview([FromRoute] long id)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long customerId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _mediator.Send(new GetCancellationPreviewQuery(id, customerId));
             return StatusCode(result.StatusCode, result);
         }
 
