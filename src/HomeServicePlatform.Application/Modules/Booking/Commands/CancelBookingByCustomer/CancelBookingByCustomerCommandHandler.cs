@@ -1,12 +1,18 @@
+using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Operations.Entities;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using HomeServicePlatform.Domain.Modules.Operations.Enum;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBookingByCustomer
@@ -15,82 +21,110 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
         : IRequestHandler<CancelBookingByCustomerCommand, ApiResponse<bool>>
     {
         private readonly IApplicationDbContext _context;
+        private readonly RefundPolicyOptions _policy;
 
-        public CancelBookingByCustomerCommandHandler(IApplicationDbContext context)
+        public CancelBookingByCustomerCommandHandler(
+            IApplicationDbContext context,
+            IOptions<RefundPolicyOptions> policy)
         {
             _context = context;
+            _policy = policy.Value;
         }
 
-        public async Task<ApiResponse<bool>> Handle(CancelBookingByCustomerCommand request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<bool>> Handle(CancelBookingByCustomerCommand request, CancellationToken ct)
         {
-            // 1. Lấy đơn hàng tổng (Bookings)
+            // 1. Lấy đơn hàng kèm các hạng mục (cần TaskerId + giờ hẹn để áp chính sách).
             var booking = await _context.Bookings
-                .FirstOrDefaultAsync(b => b.BookingId == request.BookingId, cancellationToken);
+                .Include(b => b.BookingItems)
+                .FirstOrDefaultAsync(b => b.BookingId == request.BookingId, ct);
 
             if (booking == null)
-            {
                 throw new NotFoundException($"Không tìm thấy đơn đặt lịch số #{request.BookingId}");
-            }
 
-            // 2. 🔒 CHỐNG TRUY CẬP TRÁI PHÉP: Chỉ chủ đơn mới được hủy đơn của chính mình.
+            // 2. 🔒 Chỉ chủ đơn mới được hủy đơn của chính mình.
             if (booking.CustomerId != request.CustomerId)
-            {
                 throw new ForbiddenException("Bạn không có quyền hủy đơn đặt lịch này.");
-            }
 
-            // 3. Chỉ cho phép hủy khi đơn còn Chờ xác nhận (chưa có thợ tiếp nhận).
-            if (booking.Status != BookingStatus.Pending)
-            {
-                throw new BadRequestException("Không thể hủy đơn hàng này do đơn đã được thợ tiếp nhận hoặc đã kết thúc.");
-            }
+            // 3. Tính số tiền đã thu qua hệ thống + giờ hẹn sớm nhất, rồi áp chính sách hoàn tiền.
+            var totalPaid = await _context.Payments
+                .Where(p => p.BookingId == booking.BookingId && p.Status == (short)PaymentStatus.Paid)
+                .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
 
+            var scheduledAt = booking.BookingItems.Count > 0
+                ? booking.BookingItems.Min(bi => bi.StartAt)
+                : (DateTimeOffset?)null;
+
+            var now = DateTimeOffset.UtcNow;
+            var decision = RefundPolicy.Calculate(
+                booking.Status, scheduledAt, now, RefundInitiator.Customer, totalPaid, _policy);
+
+            if (!decision.CanCancel)
+                throw new BadRequestException(decision.Reason);
+
+            // 4. Cập nhật trạng thái đơn + hạng mục + ghi Audit Trail.
             short oldStatus = (short)booking.Status;
-
-            // 4. Cập nhật đơn hàng tổng
             booking.Status = BookingStatus.Cancelled;
-            booking.UpdatedAt = DateTimeOffset.UtcNow;
+            booking.UpdatedAt = now;
 
-            // 5. Cập nhật tất cả hạng mục trong booking_items thuộc đơn này
-            var bookingItems = await _context.BookingItems
-                .Where(bi => bi.BookingId == request.BookingId)
-                .ToListAsync(cancellationToken);
-
-            foreach (var item in bookingItems)
+            foreach (var item in booking.BookingItems)
             {
                 item.Status = (short)BookingStatus.Cancelled;
                 item.CancelRejectReason = request.CancelReason;
-                item.UpdatedAt = DateTimeOffset.UtcNow;
+                item.UpdatedAt = now;
             }
 
-            // 6. Ghi nhận lịch sử thay đổi trạng thái (Audit Trail)
-            var history = new BookingHistory
+            _context.BookingHistories.Add(new BookingHistory
             {
                 BookingId = booking.BookingId,
                 OldStatus = oldStatus,
                 NewStatus = (short)BookingStatus.Cancelled,
                 ChangedBy = request.CustomerId,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
-            _context.BookingHistories.Add(history);
+                CreatedAt = now
+            });
 
-            // 🔔 Thông báo cho (các) thợ đã được gán vào đơn: khách đã hủy.
-            var taskerIds = bookingItems
+            // 5. 💸 Thực thi hoàn tiền theo chính sách (idempotent, cộng ví khách + đền thợ).
+            var outcome = await RefundExecutor.IssueRefundAsync(
+                _context, booking,
+                decision.RefundAmount, decision.PenaltyAmount,
+                RefundInitiator.Customer,
+                $"Khách hủy đơn: {request.CancelReason}",
+                now, ct);
+
+            // 6. 🔔 Thông báo cho (các) thợ đã được gán vào đơn.
+            var taskerIds = booking.BookingItems
                 .Where(bi => bi.TaskerId.HasValue)
                 .Select(bi => bi.TaskerId!.Value)
-                .Distinct();
+                .Distinct()
+                .ToList();
             foreach (var taskerId in taskerIds)
             {
                 _context.Notifications.Add(NotificationBuilder.Build(
                     taskerId,
                     NotificationType.BookingCancelledByCustomer,
                     "Khách đã hủy đơn",
-                    $"Khách đã hủy đơn BK{booking.BookingId}."));
+                    outcome.CompensatedToTasker > 0
+                        ? $"Khách đã hủy đơn BK{booking.BookingId}. Bạn được đền {outcome.CompensatedToTasker:#,##0}đ phí hủy."
+                        : $"Khách đã hủy đơn BK{booking.BookingId}."));
             }
 
-            // 7. Lưu toàn bộ thay đổi trong một Transaction
-            await _context.SaveChangesAsync(cancellationToken);
+            // 6b. 🔔 Báo khách số tiền được hoàn (nếu có).
+            if (outcome.Executed && outcome.RefundedToCustomer > 0)
+            {
+                _context.Notifications.Add(NotificationBuilder.Build(
+                    booking.CustomerId,
+                    NotificationType.RefundIssued,
+                    "Đã hoàn tiền",
+                    $"Đơn BK{booking.BookingId} đã hủy. Hệ thống hoàn {outcome.RefundedToCustomer:#,##0}đ vào ví của bạn."));
+            }
 
-            return ApiResponse<bool>.Success(true, "Hủy đơn đặt lịch thành công.");
+            // 7. Lưu toàn bộ trong một Transaction.
+            await _context.SaveChangesAsync(ct);
+
+            var message = outcome.RefundedToCustomer > 0
+                ? $"Hủy đơn thành công. Đã hoàn {outcome.RefundedToCustomer:#,##0}đ vào ví ({decision.Reason})"
+                : $"Hủy đơn thành công. {decision.Reason}";
+
+            return ApiResponse<bool>.Success(true, message);
         }
     }
 }

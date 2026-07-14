@@ -31,6 +31,8 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Tasker
             entity.Property(e => e.TotalReviews).HasColumnName("total_reviews").HasDefaultValue(0);
             entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue((short)0);
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.CancelCount).HasColumnName("cancel_count").HasDefaultValue(0);
+            entity.Property(e => e.CompletedCount).HasColumnName("completed_count").HasDefaultValue(0);
 
             entity.HasOne(d => d.User).WithOne(p => p.TaskerProfile).HasForeignKey<TaskerProfile>(d => d.TaskerProfileId).HasConstraintName("fk_tasker_profile_user");
 
