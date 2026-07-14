@@ -30,6 +30,8 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Services
             entity.HasOne(d => d.Category).WithMany(p => p.Services).HasForeignKey(d => d.CategoryId).HasConstraintName("fk_services_category");
 
             entity.HasIndex(e => e.CategoryId).HasDatabaseName("ix_services_category_id");
+            // GIN trigram functional index trên lower(name) được tạo bằng raw SQL trong migration
+            // (EF không biểu diễn được index theo biểu thức) — phục vụ lower(name) LIKE '%...%'.
         }
     }
 }

@@ -58,6 +58,8 @@ namespace HomeServicePlatform.Infrastructure.Persistence
             // Kích hoạt Extension hệ thống
             modelBuilder.HasPostgresExtension("postgis");
             modelBuilder.HasPostgresExtension("btree_gist");
+            // Trigram: cho phép index GIN phục vụ tìm kiếm ILIKE '%...%' (tên dịch vụ) nhanh.
+            modelBuilder.HasPostgresExtension("pg_trgm");
 
             // TỰ ĐỘNG NẠP TOÀN BỘ CONFIGURATION FILE (Quét qua Assembly hiện tại)
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());

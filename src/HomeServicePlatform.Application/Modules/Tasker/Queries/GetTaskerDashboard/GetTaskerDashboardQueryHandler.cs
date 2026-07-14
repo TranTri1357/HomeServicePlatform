@@ -49,15 +49,37 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerDashbo
             var weekStartUtc = new DateTimeOffset(weekStartVn, VnOffset).ToUniversalTime();
             var monthStartUtc = new DateTimeOffset(monthStartVn, VnOffset).ToUniversalTime();
 
-            // Số việc có lịch hôm nay (chưa hủy, và ĐÃ CHỐT: đã thanh toán hoặc tiền mặt) —
-            // không tính đơn mới "giữ chỗ" chưa qua thanh toán.
-            var todayJobsCount = await _context.BookingItems.CountAsync(bi =>
-                bi.TaskerId == request.TaskerId
-                && bi.Status != Cancelled
-                && bi.StartAt >= todayStartUtc && bi.StartAt < todayEndUtc
-                && _context.Payments.Any(p => p.BookingId == bi.BookingId
-                                              && (p.Status == (short)PaymentStatus.Paid
-                                                  || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))), ct);
+            // Danh sách việc có lịch hôm nay (chưa hủy, đã chốt) — vừa để đếm vừa để xem nhanh.
+            var todayJobs = await _context.BookingItems
+                .AsNoTracking()
+                .Where(bi => bi.TaskerId == request.TaskerId
+                    && bi.Status != Cancelled
+                    && bi.StartAt >= todayStartUtc && bi.StartAt < todayEndUtc
+                    && _context.Payments.Any(p => p.BookingId == bi.BookingId
+                        && (p.Status == (short)PaymentStatus.Paid
+                            || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))))
+                .OrderBy(bi => bi.StartAt)
+                .Select(bi => new TaskerTodayJobDto(
+                    bi.BookingItemId,
+                    bi.BookingId,
+                    bi.Service.Name,
+                    _context.BookingAddresses.Where(a => a.BookingId == bi.BookingId).Select(a => a.FullName).FirstOrDefault()
+                        ?? bi.Booking.Customer.FullName,
+                    bi.StartAt,
+                    bi.TotalPrice,
+                    (short)bi.Booking.Status,
+                    _context.BookingAddresses.Where(a => a.BookingId == bi.BookingId).Select(a => a.AddressLine).FirstOrDefault()
+                        ?? "Chưa cập nhật địa chỉ"))
+                .ToListAsync(ct);
+
+            var todayJobsCount = todayJobs.Count;
+
+            // Tổng số ĐƠN đã chốt của thợ (mọi trạng thái) — nhãn "X việc" ở trang chủ.
+            var totalJobsCount = await _context.Bookings.CountAsync(b =>
+                b.BookingItems.Any(i => i.TaskerId == request.TaskerId)
+                && _context.Payments.Any(p => p.BookingId == b.BookingId
+                    && (p.Status == (short)PaymentStatus.Paid
+                        || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))), ct);
 
             // Cấu hình hoa hồng còn hiệu lực (nạp một lần, phân giải trong bộ nhớ).
             var now = DateTimeOffset.UtcNow;
@@ -116,7 +138,9 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerDashbo
                 monthEarnings,
                 monthGross,
                 monthCommission,
-                weekly);
+                weekly,
+                totalJobsCount,
+                todayJobs);
 
             return ApiResponse<TaskerDashboardDto>.Success(dto, "Lấy thống kê trang chủ thợ thành công.");
         }

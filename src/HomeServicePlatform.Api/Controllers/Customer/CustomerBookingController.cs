@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using HomeServicePlatform.Api.Hubs;
+using HomeServicePlatform.Application.Common.Pagination;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBookingByCustomer;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergencyBooking;
@@ -30,10 +31,16 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             _hub = hub;
         }
 
+        // Danh sách đơn của khách: LỌC theo trạng thái (?status=0&status=1...), TÌM (?search=)
+        // và PHÂN TRANG (?pageIndex=&pageSize=) — không tải toàn bộ như trước.
         [HttpGet("my-orders")]
-        [ProducesResponseType(typeof(ApiResponse<List<MyBookingDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<MyBookingDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> GetMyBookings()
+        public async Task<IActionResult> GetMyBookings(
+            [FromQuery] short[]? status = null,
+            [FromQuery] string? search = null,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10)
         {
             // 🛡️ Tự bóc tách ID từ mã Token đã phân mã đăng nhập
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
@@ -42,7 +49,12 @@ namespace HomeServicePlatform.Api.Controllers.Customer
                 return Unauthorized();
             }
 
-            var result = await _mediator.Send(new GetMyBookingsQuery(customerId));
+            var result = await _mediator.Send(new GetMyBookingsQuery(
+                customerId,
+                status is { Length: > 0 } ? status : null,
+                search,
+                pageIndex,
+                pageSize));
             return StatusCode(result.StatusCode, result);
         }
 
