@@ -17,10 +17,10 @@ namespace HomeServicePlatform.Application.Common.Options
         /// <summary>% hoàn cho khách khi hủy lúc thợ đang trên đường (OnTheWay).</summary>
         public int OnTheWayRefundPercent { get; set; } = 0;
 
-        /// <summary>Số lần thợ hủy trong cửa sổ ngày (dưới đây) đạt ngưỡng này thì tự khóa chờ Admin duyệt.</summary>
+        /// <summary>
+        /// Tổng số lần thợ CHỦ ĐỘNG BỎ đơn đã nhận (TaskerProfile.CancelCount) đạt ngưỡng này
+        /// thì tự KHÓA tài khoản (User.Status = 0), chờ Admin mở lại. Từ chối đơn khẩn không tính.
+        /// </summary>
         public int TaskerCancelSuspendThreshold { get; set; } = 3;
-
-        /// <summary>Cửa sổ (ngày) để đếm số lần thợ hủy phục vụ tự khóa.</summary>
-        public int TaskerCancelWindowDays { get; set; } = 30;
     }
 }

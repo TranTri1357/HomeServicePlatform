@@ -91,8 +91,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                 $"Thợ hủy đơn: {request.CancelReason}",
                 now, ct);
 
-            // 📉 Hạ độ tin cậy của thợ + tự khóa nếu hủy quá nhiều trong cửa sổ ngày.
-            await PenalizeTaskerAsync(request.TaskerId, now, ct);
+            // 📉 Hạ độ tin cậy của thợ + tự khóa tài khoản nếu bỏ đơn quá nhiều lần.
+            await PenalizeTaskerAsync(request.TaskerId, ct);
 
             // 🔔 Báo khách: thợ hủy + số tiền hoàn.
             _context.Notifications.Add(NotificationBuilder.Build(
@@ -118,23 +118,23 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                     : "Đã hủy đơn.");
         }
 
-        // Tăng CancelCount và tự khóa (Status=0) nếu số lần thợ hủy trong cửa sổ ngày vượt ngưỡng.
-        private async Task PenalizeTaskerAsync(long taskerId, DateTimeOffset now, CancellationToken ct)
+        // Tăng CancelCount (đếm SẠCH: chỉ tính lần thợ chủ động BỎ đơn ĐÃ NHẬN — từ chối
+        // đơn khẩn KHÔNG gọi hàm này nên không bị phạt) và tự khóa TÀI KHOẢN khi vượt ngưỡng.
+        private async Task PenalizeTaskerAsync(long taskerId, CancellationToken ct)
         {
             var profile = await _context.TaskerProfiles.FirstOrDefaultAsync(t => t.TaskerProfileId == taskerId, ct);
             if (profile == null) return;
 
             profile.RecordCancellation();
 
-            var windowStart = now.AddDays(-_policy.TaskerCancelWindowDays);
-            // Đếm số lần thợ này hủy trong cửa sổ (đã lưu ở lịch sử) + 1 cho lần hiện tại chưa lưu.
-            var recentCancels = await _context.BookingHistories
-                .CountAsync(h => h.ChangedBy == taskerId
-                                 && h.NewStatus == (short)BookingStatus.Cancelled
-                                 && h.CreatedAt >= windowStart, ct);
-
-            if (recentCancels + 1 >= _policy.TaskerCancelSuspendThreshold)
-                profile.SuspendTasker();
+            // Chạm ngưỡng -> KHÓA TÀI KHOẢN: User.Status = 0 (giống Admin khóa tài khoản,
+            // chặn đăng nhập). Không đụng tasker_profile.Status (vốn là cờ sẵn sàng nhận việc).
+            if (profile.CancelCount >= _policy.TaskerCancelSuspendThreshold)
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == taskerId, ct);
+                if (user != null)
+                    user.Status = 0;
+            }
         }
     }
 }
