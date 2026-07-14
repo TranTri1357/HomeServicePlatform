@@ -32,7 +32,9 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
-                var keyword = request.SearchTerm.ToLower();
+                // Sinh SQL: lower(name) LIKE '%kw%' — khớp GIN trigram functional index
+                // ix_services_name_trgm trên lower(name) (không quét toàn bảng).
+                var keyword = request.SearchTerm.Trim().ToLower();
                 query = query.Where(s => s.Name.ToLower().Contains(keyword));
             }
 
