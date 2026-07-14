@@ -118,9 +118,9 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
                 }
                 else
                 {
-                    // Rút tiền / điều chỉnh...: không có gộp/hoa hồng, chỉ số tiền giao dịch.
+                    // Rút tiền / điều chỉnh / đền phí hủy...: không có gộp/hoa hồng, chỉ số tiền giao dịch.
                     entries.Add(new IncomeEntryDto(
-                        t.TransactionId, t.Type, t.BookingId ?? 0, NonEarningLabel(t.Type),
+                        t.TransactionId, t.Type, t.BookingId ?? 0, NonEarningLabel(t.Type, t.BookingId),
                         0m, 0m, t.Net, 0m, 0m, t.BalanceAfter, t.CreatedAt));
                 }
             }
@@ -136,12 +136,13 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
             return ApiResponse<TaskerIncomeDto>.Success(dto, "Lấy lịch sử thu nhập của thợ thành công.");
         }
 
-        // "Dọn nhà" hoặc "Dọn nhà +2" khi đơn có nhiều dịch vụ.
-        // Nhãn hiển thị cho các giao dịch không phải thu nhập.
-        private static string NonEarningLabel(short type) => type switch
+        // Nhãn hiển thị cho các giao dịch không phải thu nhập. Adjustment có gắn đơn
+        // chính là khoản đền phí hủy khi khách hủy muộn.
+        private static string NonEarningLabel(short type, long? bookingId) => type switch
         {
             Withdraw => "Rút tiền về tài khoản",
-            Adjustment => "Điều chỉnh số dư",
+            Adjustment => bookingId.HasValue ? "Đền phí hủy đơn" : "Điều chỉnh số dư",
+            (short)WalletTransactionType.Refund => "Hoàn tiền",
             _ => "Giao dịch ví"
         };
 
