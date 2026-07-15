@@ -8,10 +8,11 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Dtos
 {
     public record ServiceDetailDto(
         long ServiceId,
-        int CategoryId, 
+        int CategoryId,
         string Name,
         string? Description,
         int DurationMinutes,
-        bool IsActive
+        bool IsActive,
+        string? ImageUrl
     );
 }

@@ -23,6 +23,10 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Update
 
             RuleFor(x => x.DurationMinutes)
                 .GreaterThan(0).WithMessage("Thời lượng phải lớn hơn 0 phút.");
+
+            RuleFor(x => x.ImageUrl)
+                .MaximumLength(500).WithMessage("Đường dẫn ảnh quá dài.")
+                .When(x => !string.IsNullOrEmpty(x.ImageUrl));
         }
     }
 }

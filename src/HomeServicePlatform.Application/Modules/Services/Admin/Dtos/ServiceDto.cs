@@ -9,9 +9,10 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Dtos
     public record ServiceDto(
         long ServiceId,
         string Name,
-        string CategoryName,    
-        int TotalTaskers,       
-        int TotalBookings,     
-        bool IsActive
+        string CategoryName,
+        int TotalTaskers,
+        int TotalBookings,
+        bool IsActive,
+        string? ImageUrl
     );
 }

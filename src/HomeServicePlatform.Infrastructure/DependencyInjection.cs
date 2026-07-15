@@ -14,6 +14,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Infrastructure.ThirdPartyServices.Payments.Strategies;
+using HomeServicePlatform.Application.Common.Options;
+using HomeServicePlatform.Infrastructure.ThirdPartyServices.Storage;
 
 namespace HomeServicePlatform.Infrastructure
 {
@@ -44,6 +46,16 @@ namespace HomeServicePlatform.Infrastructure
 
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // Lưu trữ ảnh qua Cloudinary (khóa nạp từ section "Cloudinary" — User Secrets/Env, không để trong git).
+            services.Configure<CloudinaryOptions>(opts =>
+            {
+                var section = configuration.GetSection(CloudinaryOptions.SectionName);
+                opts.CloudName = section["CloudName"] ?? string.Empty;
+                opts.ApiKey = section["ApiKey"] ?? string.Empty;
+                opts.ApiSecret = section["ApiSecret"] ?? string.Empty;
+            });
+            services.AddSingleton<IImageStorage, CloudinaryImageStorage>();
 
 
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));

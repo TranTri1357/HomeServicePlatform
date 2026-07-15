@@ -46,10 +46,11 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetAllS
                 .Select(x => new ServiceDto(
                     x.ServiceId,
                     x.Name,
-                    x.Category.Name,            
-                    x.TaskerServices.Count(),   
-                    x.BookingItems.Count(),     
-                    x.IsActive
+                    x.Category.Name,
+                    x.TaskerServices.Count(),
+                    x.BookingItems.Count(),
+                    x.IsActive,
+                    x.ImageUrl
                 ))
                 .ToListAsync(cancellationToken);
 

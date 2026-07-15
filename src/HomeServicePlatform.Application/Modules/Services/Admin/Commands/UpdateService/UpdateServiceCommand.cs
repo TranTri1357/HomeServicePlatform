@@ -17,6 +17,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Update
         public int CategoryId { get; set; }
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
         public int DurationMinutes { get; set; }
         public bool IsActive { get; set; }
     }

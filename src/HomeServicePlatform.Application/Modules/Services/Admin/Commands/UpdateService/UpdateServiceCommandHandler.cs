@@ -33,6 +33,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Update
             service.CategoryId = request.CategoryId;
             service.Name = request.Name;
             service.Description = request.Description;
+            service.ImageUrl = request.ImageUrl;
             service.DurationMinutes = request.DurationMinutes;
             service.IsActive = request.IsActive;
 
