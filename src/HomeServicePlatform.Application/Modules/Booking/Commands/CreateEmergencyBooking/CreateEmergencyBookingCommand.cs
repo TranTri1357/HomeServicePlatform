@@ -1,18 +1,20 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Application.Modules.Booking.Emergency;
 using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergencyBooking
 {
     /// <summary>
-    /// Khách gọi thợ khẩn cấp: chọn 1 dịch vụ + 1 thợ đang rảnh gần đó (đã quét trong
-    /// bán kính 5km), gửi yêu cầu ngay. CustomerId lấy từ Token. Thanh toán tiền mặt
-    /// sau khi hoàn thành nên đơn không cần thanh toán trước.
+    /// Khách gọi thợ khẩn cấp theo kiểu BROADCAST: chọn 1 dịch vụ + vị trí, hệ thống tạo 1 đơn
+    /// treo mở (chưa gán thợ) rồi bắn yêu cầu tới TẤT CẢ thợ đang rảnh trong bán kính. Ai bấm nhận
+    /// trước thì đơn thuộc về người đó, các thợ còn lại không nhận được nữa. Giá chốt theo thợ nhận.
+    /// CustomerId lấy từ Token. Thanh toán tiền mặt sau khi hoàn thành.
     /// </summary>
     public record CreateEmergencyBookingCommand(
         [property: JsonIgnore] long CustomerId,
         long ServiceId,
-        long TaskerId,
         double Latitude,
         double Longitude,
         string FullName,
@@ -21,18 +23,22 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
         string? ProvinceCode,
         string? DistrictCode,
         string? WardCode,
-        decimal UnitPrice,
         string? Note
     ) : IRequest<ApiResponse<CreateEmergencyBookingResponse>>;
 
-    /// <summary>Dữ liệu để controller đẩy SignalR "ReceiveEmergencyRequest" tới thợ + trả về khách.</summary>
+    /// <summary>
+    /// Dữ liệu để controller đẩy SignalR "ReceiveEmergencyRequest" tới từng thợ (mỗi thợ giá riêng)
+    /// và trả về khách để hiển thị màn chờ. <see cref="Taskers"/> có thể rỗng nếu bán kính này chưa
+    /// có thợ nào — khi đó frontend tự nới bán kính (re-broadcast).
+    /// </summary>
     public record CreateEmergencyBookingResponse(
         long BookingId,
-        long TaskerId,
         string ServiceName,
         string AddressLine,
-        decimal Amount,
-        double DistanceKm,
-        int ExpiresInSeconds
+        double Latitude,
+        double Longitude,
+        int ExpiresInSeconds,
+        double RadiusKm,
+        IReadOnlyList<EmergencyTaskerOffer> Taskers
     );
 }

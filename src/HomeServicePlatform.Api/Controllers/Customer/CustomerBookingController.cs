@@ -5,6 +5,7 @@ using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBookingByCustomer;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergencyBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergencyBooking;
+using HomeServicePlatform.Application.Modules.Booking.Commands.RebroadcastEmergencyBooking;
 using HomeServicePlatform.Application.Modules.Booking.Queries.GetCancellationPreview;
 using HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings;
 using MediatR;
@@ -97,7 +98,8 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             return StatusCode(result.StatusCode, result);
         }
 
-        // 🚨 Khách gọi thợ khẩn cấp: tạo đơn trực tiếp cho 1 thợ rồi đẩy SignalR tới thợ đó.
+        // 🚨 Khách gọi thợ khẩn cấp (BROADCAST): tạo 1 đơn treo mở rồi bắn SignalR tới TẤT CẢ thợ rảnh
+        //    trong bán kính đầu (5km). Ai bấm nhận trước thì được đơn.
         [HttpPost("emergency")]
         [ProducesResponseType(typeof(ApiResponse<CreateEmergencyBookingResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -112,23 +114,48 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             var result = await _mediator.Send(securedCommand);
 
             if (result.Succeeded && result.Data != null)
+                await BroadcastOffersAsync(result.Data);
+
+            return StatusCode(result.StatusCode, result);
+        }
+
+        // 🚨 Nới bán kính quét (5km → 10km → 15km) cho đơn khẩn cấp chưa ai nhận, rồi bắn SignalR
+        //    tới các thợ trong vòng mới. Frontend gọi khi hết một vòng 30s mà chưa có thợ nhận.
+        [HttpPost("emergency/{id:long}/broadcast")]
+        [ProducesResponseType(typeof(ApiResponse<CreateEmergencyBookingResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> RebroadcastEmergency([FromRoute] long id, [FromQuery] double radiusKm)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long customerId))
+                return Unauthorized();
+
+            var result = await _mediator.Send(new RebroadcastEmergencyBookingCommand(customerId, id, radiusKm));
+
+            if (result.Succeeded && result.Data != null)
+                await BroadcastOffersAsync(result.Data);
+
+            return StatusCode(result.StatusCode, result);
+        }
+
+        // Bắn "ReceiveEmergencyRequest" tới từng thợ đủ điều kiện — mỗi thợ nhận GIÁ RIÊNG của mình.
+        private async Task BroadcastOffersAsync(CreateEmergencyBookingResponse d)
+        {
+            foreach (var t in d.Taskers)
             {
-                var d = result.Data;
-                await _hub.Clients.Group(BookingHub.UserGroup(d.TaskerId))
+                await _hub.Clients.Group(BookingHub.UserGroup(t.TaskerId))
                     .SendAsync("ReceiveEmergencyRequest", new
                     {
                         bookingId = d.BookingId,
                         serviceName = d.ServiceName,
                         addressLine = d.AddressLine,
-                        amount = d.Amount,
-                        distanceKm = d.DistanceKm,
+                        amount = t.Price,
+                        distanceKm = t.DistanceKm,
                         expiresInSeconds = d.ExpiresInSeconds,
-                        latitude = securedCommand.Latitude,
-                        longitude = securedCommand.Longitude
+                        latitude = d.Latitude,
+                        longitude = d.Longitude
                     });
             }
-
-            return StatusCode(result.StatusCode, result);
         }
 
         // 🚨 Khách hủy đơn khẩn (hết 30s / chọn thợ khác) → báo thợ đóng modal.

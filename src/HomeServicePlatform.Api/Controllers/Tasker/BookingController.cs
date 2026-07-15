@@ -8,7 +8,9 @@ using HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergencyBo
 using HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartMoving;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartWorking;
+using HomeServicePlatform.Application.Modules.Booking.Emergency;
 using MediatR;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -63,8 +65,40 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             }
 
             var result = await _mediator.Send(new AcceptBookingCommand(id, taskerId));
-            if (result.Succeeded) await NotifyCustomerAsync(id);
+            if (result.Succeeded)
+            {
+                await NotifyCustomerAsync(id);
+                // 🚨 Đơn khẩn broadcast: báo các thợ còn lại đóng modal (đơn đã có người nhận).
+                await NotifyOtherEmergencyTaskersAsync(id, winnerTaskerId: taskerId);
+            }
             return StatusCode(result.StatusCode, result);
+        }
+
+        // Với đơn khẩn cấp vừa được một thợ nhận: bắn "ReceiveEmergencyCancelled" tới các thợ khác
+        // (đang rảnh, cùng dịch vụ, trong 15km) để hộp thoại đơn khẩn của họ tự đóng ngay.
+        private async Task NotifyOtherEmergencyTaskersAsync(long bookingId, long winnerTaskerId)
+        {
+            var info = await _context.Bookings.AsNoTracking()
+                .Where(b => b.BookingId == bookingId && b.IsEmergency)
+                .Select(b => new
+                {
+                    ServiceId = b.BookingItems.Select(i => i.ServiceId).FirstOrDefault(),
+                    Lat = b.BookingAddress != null && b.BookingAddress.Geom != null ? (double?)b.BookingAddress.Geom.Y : null,
+                    Lng = b.BookingAddress != null && b.BookingAddress.Geom != null ? (double?)b.BookingAddress.Geom.X : null
+                })
+                .FirstOrDefaultAsync();
+
+            if (info == null || info.Lat == null || info.Lng == null) return;
+
+            var taskers = await EmergencyTaskerFinder.FindEligibleAsync(
+                _context, info.ServiceId, info.Lat.Value, info.Lng.Value, radiusKm: 15.0, ct: default);
+
+            foreach (var t in taskers)
+            {
+                if (t.TaskerId == winnerTaskerId) continue;
+                await _hub.Clients.Group(BookingHub.UserGroup(t.TaskerId))
+                    .SendAsync("ReceiveEmergencyCancelled", new { bookingId });
+            }
         }
 
         [HttpPut("{id:long}/start-moving")]

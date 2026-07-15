@@ -112,5 +112,13 @@ namespace HomeServicePlatform.Infrastructure.Persistence
         /// </summary>
         public Task AcquireTaskerScheduleLockAsync(long taskerId, CancellationToken cancellationToken = default)
             => Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({taskerId})", cancellationToken);
+
+        /// <summary>
+        /// Giữ advisory lock theo đơn để tuần tự hóa việc giành đơn khẩn cấp broadcast.
+        /// Dùng biến thể HAI khóa int (class=1, objId=bookingId) — KHÔNG gian khóa TÁCH BIỆT
+        /// với khóa theo thợ (dạng một khóa bigint) nên không bao giờ đụng độ nhau.
+        /// </summary>
+        public Task AcquireBookingClaimLockAsync(long bookingId, CancellationToken cancellationToken = default)
+            => Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1, {(int)bookingId})", cancellationToken);
     }
 }
