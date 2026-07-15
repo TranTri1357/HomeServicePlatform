@@ -45,5 +45,12 @@ namespace HomeServicePlatform.Application.Common.Interfaces
 
         // Bắt buộc phải có hàm này để luồng Query có thể gọi CancellationToken nếu cần
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Giữ advisory lock theo thợ (pg_advisory_xact_lock) trong transaction hiện tại — dùng để
+        /// tuần tự hóa việc đặt lịch của cùng một thợ, chống double-booking khi có nhiều request đồng thời.
+        /// Khóa tự nhả khi transaction kết thúc (commit/rollback). Phải gọi bên trong một transaction.
+        /// </summary>
+        Task AcquireTaskerScheduleLockAsync(long taskerId, CancellationToken cancellationToken = default);
     }
 }

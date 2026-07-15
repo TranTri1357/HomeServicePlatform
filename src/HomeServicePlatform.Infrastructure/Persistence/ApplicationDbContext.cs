@@ -105,5 +105,12 @@ namespace HomeServicePlatform.Infrastructure.Persistence
 
             return base.SaveChangesAsync(cancellationToken);
         }
+
+        /// <summary>
+        /// Giữ advisory lock theo thợ trong transaction hiện tại (chống double-booking đồng thời).
+        /// Khóa cùng một khóa (theo taskerId) sẽ tuần tự hóa; tự nhả khi transaction kết thúc.
+        /// </summary>
+        public Task AcquireTaskerScheduleLockAsync(long taskerId, CancellationToken cancellationToken = default)
+            => Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({taskerId})", cancellationToken);
     }
 }

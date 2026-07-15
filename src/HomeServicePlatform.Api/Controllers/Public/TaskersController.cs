@@ -43,9 +43,10 @@ namespace HomeServicePlatform.Api.Controllers.Public
         /// <summary>Khung giờ trống của thợ trong một ngày (cho khách chọn lịch hẹn).</summary>
         [HttpGet("{id}/availability")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetAvailability(long id, [FromQuery] DateOnly date)
+        public async Task<IActionResult> GetAvailability(long id, [FromQuery] DateOnly date,
+            [FromQuery] double? lat = null, [FromQuery] double? lng = null)
         {
-            var result = await _mediator.Send(new GetTaskerAvailabilityQuery(id, date));
+            var result = await _mediator.Send(new GetTaskerAvailabilityQuery(id, date, lat, lng));
             return StatusCode(result.StatusCode, result);
         }
 
