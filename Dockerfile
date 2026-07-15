@@ -30,6 +30,12 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:10000
 ENV ASPNETCORE_ENVIRONMENT=Production
 
+# Khắc phục SIGSEGV (exit 139) của .NET trong một số container/host cloud:
+# tắt cơ chế bộ nhớ W^X (nguyên nhân crash phổ biến trên host có kernel siết mmap),
+# và tắt tiered compilation để tránh lỗi JIT hiếm gặp lúc khởi động.
+ENV DOTNET_EnableWriteXorExecute=0
+ENV DOTNET_TieredCompilation=0
+
 EXPOSE 10000
 
 ENTRYPOINT ["dotnet","HomeServicePlatform.Api.dll"]
