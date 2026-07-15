@@ -36,6 +36,12 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 ENV DOTNET_EnableWriteXorExecute=0
 ENV DOTNET_TieredCompilation=0
 
+# Tắt theo dõi thay đổi file appsettings (reloadOnChange). Production không cần nạp lại
+# config nóng, mà FileSystemWatcher lại tạo inotify instance — trên host Render dùng chung
+# hạn mức fs.inotify.max_user_instances thấp, dễ cạn → IOException "inotify instances ...
+# reached" khi WebApplication.CreateBuilder → crash lúc khởi động.
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false
+
 EXPOSE 10000
 
 ENTRYPOINT ["dotnet","HomeServicePlatform.Api.dll"]
