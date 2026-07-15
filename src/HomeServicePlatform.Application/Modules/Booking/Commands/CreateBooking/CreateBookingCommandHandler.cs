@@ -4,7 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Entities;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
@@ -13,6 +15,7 @@ using HomeServicePlatform.Domain.Modules.Payments.Enum;
 
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
@@ -25,13 +28,16 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
         private readonly IBookingRepository _bookingRepository;
         private readonly IUnitOfWork _unitOfWork; // 🟢 Tích hợp UnitOfWork quản lý Transaction gộp
         private readonly IApplicationDbContext _context;
+        private readonly BufferPolicyOptions _buffer;
         private readonly GeometryFactory _geometryFactory;
 
-        public CreateBookingCommandHandler(IBookingRepository bookingRepository, IUnitOfWork unitOfWork, IApplicationDbContext context)
+        public CreateBookingCommandHandler(IBookingRepository bookingRepository, IUnitOfWork unitOfWork,
+            IApplicationDbContext context, IOptions<BufferPolicyOptions> buffer)
         {
             _bookingRepository = bookingRepository;
             _unitOfWork = unitOfWork;
             _context = context;
+            _buffer = buffer.Value;
             _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // Chuẩn WGS84 cho PostGIS
         }
 
@@ -146,19 +152,46 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
                 Geom = locationGeom
             };
 
-            // 6+7. Lưu Aggregate Root xuống DB rồi chốt. 🛡️ Việc INSERT thật sự nằm trong
-            //     SaveAggregateAsync, nên PHẢI bọc cả nó trong try/catch: nếu slot vừa bị người
-            //     khác giữ (đè lịch cùng thợ), CSDL bật exclusion constraint (SQLSTATE 23P01)
-            //     -> dịch thành lỗi nghiệp vụ thân thiện thay vì lỗi lưu EF thô.
+            // 6+7. Lưu Aggregate Root xuống DB rồi chốt — CHỐNG DOUBLE-BOOKING + ĐỆM DI CHUYỂN:
+            //   • Mở transaction, giữ advisory lock theo TỪNG thợ (khóa theo thứ tự tăng dần để
+            //     tránh deadlock) → tuần tự hóa các đơn đồng thời của cùng một thợ.
+            //   • Kiểm tra buffer di chuyển tới đơn liền trước/sau (tầng ứng dụng, theo khoảng cách).
+            //   • Lưu Aggregate (tham gia transaction hiện tại) rồi commit.
+            //   🛡️ Nếu có đơn ĐÈ GIỜ thật (overlap), CSDL bật exclusion constraint gốc (SQLSTATE 23P01)
+            //      -> dịch thành lỗi nghiệp vụ thân thiện. (Buffer di chuyển do TravelBufferGuard lo.)
+            var destLat = request.Latitude;
+            var destLng = request.Longitude;
+            var lockTaskerIds = booking.BookingItems
+                .Where(i => i.TaskerId.HasValue)
+                .Select(i => i.TaskerId!.Value)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            await _unitOfWork.BeginTransactionAsync();
             try
             {
+                foreach (var tid in lockTaskerIds)
+                    await _context.AcquireTaskerScheduleLockAsync(tid, cancellationToken);
+
+                foreach (var item in booking.BookingItems.Where(i => i.TaskerId.HasValue))
+                    await TravelBufferGuard.EnsureTravelFeasibleAsync(
+                        _context, _buffer, item.TaskerId!.Value, item.StartAt, item.EndAt, destLat, destLng, cancellationToken);
+
                 await _bookingRepository.SaveAggregateAsync(booking);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync();
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))
             {
+                await _unitOfWork.RollbackTransactionAsync();
                 throw new BadRequestException(
                     "Rất tiếc, khung giờ bạn chọn của thợ vừa có người khác đặt trước. Vui lòng chọn khung giờ hoặc thợ khác.");
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
             }
 
             // 🔔 Lưu ý luồng Cách 2: KHÔNG bắn thông báo cho thợ tại đây. Đơn lúc này mới chỉ

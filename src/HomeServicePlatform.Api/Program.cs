@@ -25,6 +25,10 @@ namespace HomeServicePlatform.Api
             builder.Services.Configure<RefundPolicyOptions>(
                 builder.Configuration.GetSection(RefundPolicyOptions.SectionName));
 
+            // Chính sách buffer time di chuyển giữa 2 đơn — section "BufferPolicy".
+            builder.Services.Configure<BufferPolicyOptions>(
+                builder.Configuration.GetSection(BufferPolicyOptions.SectionName));
+
             var app = builder.Build();
 
             // KÍCH HOẠT CÁI LƯỚI BẮT LỖI TOÀN HỆ THỐNG

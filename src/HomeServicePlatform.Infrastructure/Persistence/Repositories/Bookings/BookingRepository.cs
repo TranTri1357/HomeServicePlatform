@@ -24,6 +24,15 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings
 
         public async Task SaveAggregateAsync(DomainBooking booking)
         {
+            // Nếu caller đã mở transaction (vd để giữ advisory lock chống double-booking), THAM GIA
+            // vào transaction đó — Npgsql không hỗ trợ transaction lồng nên không tự mở thêm.
+            if (_context.Database.CurrentTransaction != null)
+            {
+                _context.Bookings.Add(booking);
+                await _context.SaveChangesAsync();
+                return;
+            }
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {

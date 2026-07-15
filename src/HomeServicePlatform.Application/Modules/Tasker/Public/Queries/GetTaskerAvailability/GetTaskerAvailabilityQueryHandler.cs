@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Application.Common.Responses;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerAvailability
 {
@@ -17,7 +20,13 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
         private static readonly TimeSpan HoldTtl = TimeSpan.FromMinutes(15);
 
         private readonly IApplicationDbContext _context;
-        public GetTaskerAvailabilityQueryHandler(IApplicationDbContext context) => _context = context;
+        private readonly BufferPolicyOptions _buffer;
+
+        public GetTaskerAvailabilityQueryHandler(IApplicationDbContext context, IOptions<BufferPolicyOptions> buffer)
+        {
+            _context = context;
+            _buffer = buffer.Value;
+        }
 
         public async Task<ApiResponse<TaskerAvailabilityDto>> Handle(GetTaskerAvailabilityQuery request, CancellationToken ct)
         {
@@ -44,13 +53,35 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
                 .ToListAsync(ct);
 
             // Đơn "chiếm chỗ": đã nhận/đang làm (1,2,3) HOẶC đơn giữ chỗ (0) còn trong hạn TTL.
+            // Lấy kèm TỌA ĐỘ địa điểm của từng đơn (qua BookingAddress.Geom) để tính buffer di chuyển.
             var busy = await _context.BookingItems.AsNoTracking()
                 .Where(b => b.TaskerId == request.TaskerId
                             && b.StartAt < endOfDayUtc && b.EndAt > startOfDayUtc
                             && ((b.Status >= 1 && b.Status <= 3)
                                 || (b.Status == 0 && b.CreatedAt > freshHoldSince)))
-                .Select(b => new { b.StartAt, b.EndAt })
+                .Select(b => new
+                {
+                    b.StartAt,
+                    b.EndAt,
+                    Geom = b.Booking.BookingAddress != null ? b.Booking.BookingAddress.Geom : null
+                })
                 .ToListAsync(ct);
+
+            // Với mỗi đơn bận, tính buffer (phút) từ địa điểm đơn đó tới ĐÍCH của đơn sắp đặt.
+            // Không có tọa độ đích ⇒ không trừ buffer (giữ hành vi cũ, để backend chặn khi tạo đơn).
+            bool hasDest = request.Lat.HasValue && request.Lng.HasValue;
+            var busyPadded = busy
+                .Select(b =>
+                {
+                    double? lat = b.Geom?.Y;
+                    double? lng = b.Geom?.X;
+                    int bufferMin = hasDest
+                        ? TravelBufferCalculator.BufferMinutesBetween(lat, lng, request.Lat, request.Lng, _buffer)
+                        : 0;
+                    var pad = TimeSpan.FromMinutes(bufferMin);
+                    return new { Start = b.StartAt - pad, End = b.EndAt + pad };
+                })
+                .ToList();
 
             var slots = new List<AvailabilitySlotDto>();
             var current = schedule.StartTime;
@@ -61,7 +92,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
 
                 bool blocked =
                     timeOffs.Any(t => t.StartAt < slotEnd && t.EndAt > slotStart) ||
-                    busy.Any(b => b.StartAt < slotEnd && b.EndAt > slotStart);
+                    busyPadded.Any(b => b.Start < slotEnd && b.End > slotStart);
 
                 slots.Add(new AvailabilitySlotDto(current, !blocked));
                 current = current.AddHours(1);

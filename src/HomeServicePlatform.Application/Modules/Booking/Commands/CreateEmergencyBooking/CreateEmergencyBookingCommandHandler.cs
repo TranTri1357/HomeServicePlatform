@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Entities;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
@@ -12,6 +13,7 @@ using HomeServicePlatform.Domain.Modules.Bookings.Interface;
 using HomeServicePlatform.Domain.Modules.Operations.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergencyBooking
@@ -26,12 +28,17 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
 
         private readonly IBookingRepository _bookingRepository;
         private readonly IApplicationDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly BufferPolicyOptions _buffer;
         private readonly GeometryFactory _geometryFactory;
 
-        public CreateEmergencyBookingCommandHandler(IBookingRepository bookingRepository, IApplicationDbContext context)
+        public CreateEmergencyBookingCommandHandler(IBookingRepository bookingRepository, IApplicationDbContext context,
+            IUnitOfWork unitOfWork, IOptions<BufferPolicyOptions> buffer)
         {
             _bookingRepository = bookingRepository;
             _context = context;
+            _unitOfWork = unitOfWork;
+            _buffer = buffer.Value;
             _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // WGS84 (PostGIS)
         }
 
@@ -123,14 +130,28 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
                 "Đơn khẩn cấp!",
                 $"Có khách cần {service.Name} gấp, cách bạn {distanceKm}km. Phản hồi trong 30 giây."));
 
-            // 7. Lưu Aggregate (booking + item + address + notification cùng 1 lần lưu).
+            // 7. Lưu Aggregate (booking + item + address + notification) — CHỐNG DOUBLE-BOOKING:
+            //    giữ advisory lock theo thợ + kiểm tra đệm di chuyển trong cùng transaction rồi commit.
+            await _unitOfWork.BeginTransactionAsync();
             try
             {
+                await _context.AcquireTaskerScheduleLockAsync(request.TaskerId, ct);
+
+                await TravelBufferGuard.EnsureTravelFeasibleAsync(
+                    _context, _buffer, request.TaskerId, startAtUtc, endAtUtc, request.Latitude, request.Longitude, ct);
+
                 await _bookingRepository.SaveAggregateAsync(booking);
+                await _unitOfWork.CommitTransactionAsync();
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))
             {
+                await _unitOfWork.RollbackTransactionAsync();
                 throw new BadRequestException("Thợ vừa nhận một việc khác trùng giờ. Vui lòng chọn thợ khác.");
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
             }
 
             var response = new CreateEmergencyBookingResponse(
