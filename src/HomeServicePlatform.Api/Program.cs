@@ -35,9 +35,9 @@ namespace HomeServicePlatform.Api
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
             // Configure the HTTP request pipeline.
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            
+            app.UseSwagger();
+            app.UseSwaggerUI();
+
 
             app.UseHttpsRedirection();
             app.UseCors("AllowAll");
@@ -51,8 +51,12 @@ namespace HomeServicePlatform.Api
             app.MapHub<BookingHub>("/booking-hub");
             // Hub chat theo đơn
             app.MapHub<ChatHub>("/chat-hub");
-            
-            app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+            app.MapMethods(
+    "/health",
+    new[] { "GET", "HEAD" },
+    () => Results.Ok(new { status = "ok" }));
+
             app.Run();
         }
     }
