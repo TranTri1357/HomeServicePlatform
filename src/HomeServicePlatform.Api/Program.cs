@@ -51,7 +51,8 @@ namespace HomeServicePlatform.Api
             app.MapHub<BookingHub>("/booking-hub");
             // Hub chat theo đơn
             app.MapHub<ChatHub>("/chat-hub");
-
+            
+            app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
             app.Run();
         }
     }
