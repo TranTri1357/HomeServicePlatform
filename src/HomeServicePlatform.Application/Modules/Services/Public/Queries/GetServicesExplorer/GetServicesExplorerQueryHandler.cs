@@ -54,7 +54,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                     .Where(ts => !ts.TaskerProfile.IsDeleted && ts.TaskerProfile.TotalReviews > 0)
                     .Select(ts => (decimal?)ts.TaskerProfile.RatingAvg)
                     .Average() ?? 0,
-                ImageUrl = null // Gắn URL ảnh mặc định ở đây nếu muốn
+                ImageUrl = s.ImageUrl
             });
 
             if (request.MinPrice.HasValue)

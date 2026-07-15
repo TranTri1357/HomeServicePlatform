@@ -40,7 +40,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                         .Where(p => p.EffectiveTo == null || p.EffectiveTo > now)
                         .Min(p => (decimal?)p.Price) ?? 0,
 
-                    ImageUrl = null, // Có thể bổ sung link ảnh mặc định nếu cần
+                    ImageUrl = s.ImageUrl,
 
                     SuggestedTaskers = s.TaskerServices
                         .Where(ts => !ts.TaskerProfile.IsDeleted && ts.TaskerProfile.Status == 1)

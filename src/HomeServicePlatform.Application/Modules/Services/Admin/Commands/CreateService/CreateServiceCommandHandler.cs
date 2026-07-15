@@ -26,6 +26,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Create
                 CategoryId = request.CategoryId,
                 Name = request.Name,
                 Description = request.Description,
+                ImageUrl = request.ImageUrl,
                 DurationMinutes = request.DurationMinutes,
                 IsActive = true,
                 IsDeleted = false

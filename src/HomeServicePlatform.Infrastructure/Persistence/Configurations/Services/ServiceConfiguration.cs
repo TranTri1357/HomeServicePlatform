@@ -21,6 +21,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Services
             entity.Property(e => e.CategoryId).HasColumnName("category_id");
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
             entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(4000);
+            entity.Property(e => e.ImageUrl).HasColumnName("image_url").HasMaxLength(500);
             entity.Property(e => e.DurationMinutes).HasColumnName("duration_minutes");
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);

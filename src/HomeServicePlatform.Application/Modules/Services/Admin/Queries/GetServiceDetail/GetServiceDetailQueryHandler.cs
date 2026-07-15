@@ -25,11 +25,12 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetServ
                 .Where(x => x.ServiceId == request.ServiceId && !x.IsDeleted)
                 .Select(x => new ServiceDetailDto(
                     x.ServiceId,
-                    x.CategoryId, 
+                    x.CategoryId,
                     x.Name,
                     x.Description,
                     x.DurationMinutes,
-                    x.IsActive
+                    x.IsActive,
+                    x.ImageUrl
                 ))
                 .FirstOrDefaultAsync(cancellationToken);
 

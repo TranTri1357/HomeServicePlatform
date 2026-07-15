@@ -12,6 +12,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Commands.Create
         int CategoryId,
         string Name,
         string? Description,
-        int DurationMinutes
+        int DurationMinutes,
+        string? ImageUrl
     ) : IRequest<ApiResponse<long>>;
 }
