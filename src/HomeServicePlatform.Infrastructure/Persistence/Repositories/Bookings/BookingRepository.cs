@@ -59,7 +59,15 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings
 
         public async Task UpdateAggregateAsync(DomainBooking booking)
         {
-            // Sử dụng Database Transaction đảm bảo chuỗi cập nhật (bảng chính + bảng phụ) 
+            // Nếu caller đã mở transaction (vd luồng nhận đơn khẩn cấp giữ advisory lock để giành đơn),
+            // THAM GIA vào transaction đó — Npgsql không hỗ trợ transaction lồng nên không tự mở thêm.
+            if (_context.Database.CurrentTransaction != null)
+            {
+                await _context.SaveChangesAsync();
+                return;
+            }
+
+            // Sử dụng Database Transaction đảm bảo chuỗi cập nhật (bảng chính + bảng phụ)
             // Nếu có 1 lệnh lỗi, toàn bộ dữ liệu sẽ tự động rollback an toàn tuyệt đối.
             using var transaction = await _context.Database.BeginTransactionAsync();
             try

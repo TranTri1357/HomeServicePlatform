@@ -1,19 +1,15 @@
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
-using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
-using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Application.Modules.Booking.Emergency;
 using HomeServicePlatform.Domain.Modules.Bookings.Entities;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using HomeServicePlatform.Domain.Modules.Bookings.Interface;
-using HomeServicePlatform.Domain.Modules.Operations.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergencyBooking
@@ -21,32 +17,25 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
     public class CreateEmergencyBookingCommandHandler
         : IRequestHandler<CreateEmergencyBookingCommand, ApiResponse<CreateEmergencyBookingResponse>>
     {
-        // Bán kính quét thợ khẩn cấp (đồng bộ với Use Case trong đề tài) và thời gian thợ có để bấm nhận.
-        private const double MaxRadiusKm = 5.0;
-        private const double DegreesPerKm = 111.12; // xấp xỉ tại xích đạo (đồng bộ GetNearbyTaskers)
+        // Vòng quét đầu tiên và thời gian thợ có để bấm nhận. Việc NỚI bán kính (10km, 15km) do
+        // frontend điều phối qua re-broadcast khi hết vòng mà chưa ai nhận.
+        private const double InitialRadiusKm = 5.0;
         private static readonly TimeSpan ResponseWindow = TimeSpan.FromSeconds(30);
 
         private readonly IBookingRepository _bookingRepository;
         private readonly IApplicationDbContext _context;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly BufferPolicyOptions _buffer;
         private readonly GeometryFactory _geometryFactory;
 
-        public CreateEmergencyBookingCommandHandler(IBookingRepository bookingRepository, IApplicationDbContext context,
-            IUnitOfWork unitOfWork, IOptions<BufferPolicyOptions> buffer)
+        public CreateEmergencyBookingCommandHandler(IBookingRepository bookingRepository, IApplicationDbContext context)
         {
             _bookingRepository = bookingRepository;
             _context = context;
-            _unitOfWork = unitOfWork;
-            _buffer = buffer.Value;
             _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // WGS84 (PostGIS)
         }
 
         public async Task<ApiResponse<CreateEmergencyBookingResponse>> Handle(CreateEmergencyBookingCommand request, CancellationToken ct)
         {
             // 1. Kiểm tra đầu vào cơ bản.
-            if (request.UnitPrice <= 0)
-                throw new BadRequestException("Giá dịch vụ khẩn cấp không hợp lệ.");
             if (string.IsNullOrWhiteSpace(request.AddressLine))
                 throw new BadRequestException("Vui lòng nhập địa chỉ để thợ đến.");
 
@@ -57,27 +46,9 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
             if (service == null)
                 throw new NotFoundException("Không tìm thấy dịch vụ hoặc dịch vụ đã ngừng.");
 
-            // 3. Thợ phải đang rảnh (Status==1), còn hoạt động, có vị trí và cung cấp dịch vụ này.
-            var tasker = await _context.TaskerProfiles
-                .AsNoTracking()
-                .Include(t => t.TaskerServices)
-                .FirstOrDefaultAsync(t => t.TaskerProfileId == request.TaskerId && !t.IsDeleted, ct);
-            if (tasker == null)
-                throw new NotFoundException("Không tìm thấy thợ.");
-            if (tasker.Status != 1)
-                throw new BadRequestException("Thợ hiện không sẵn sàng nhận việc.");
-            if (tasker.CurrentGeom == null)
-                throw new BadRequestException("Thợ chưa cập nhật vị trí, không thể gọi khẩn cấp.");
-            if (!tasker.TaskerServices.Any(ts => ts.ServiceId == request.ServiceId))
-                throw new BadRequestException("Thợ này không cung cấp dịch vụ đã chọn.");
-
-            // 4. Khoảng cách phải trong bán kính 5km.
-            var customerPoint = _geometryFactory.CreatePoint(new Coordinate(request.Longitude, request.Latitude));
-            var distanceKm = Math.Round(tasker.CurrentGeom.Distance(customerPoint) * DegreesPerKm, 1);
-            if (distanceKm > MaxRadiusKm)
-                throw new BadRequestException($"Thợ đã ở ngoài bán kính {MaxRadiusKm:0}km (cách {distanceKm}km).");
-
-            // 5. Dựng đơn khẩn cấp: bắt đầu "ngay bây giờ", cửa sổ phản hồi 30s.
+            // 3. Dựng đơn khẩn cấp TREO MỞ: chưa gán thợ (TaskerId = null → KHÔNG giữ chỗ lịch của ai,
+            //    khớp EXCLUDE constraint chỉ áp dụng khi tasker_id IS NOT NULL), giá = 0 (chốt khi thợ nhận),
+            //    cửa sổ phản hồi 30s. Thợ nào bấm nhận trước sẽ được gán + chốt giá ở AcceptBooking.
             var nowUtc = DateTimeOffset.UtcNow;
             var startAtUtc = nowUtc;
             var endAtUtc = nowUtc.AddMinutes(service.DurationMinutes > 0 ? service.DurationMinutes : 60);
@@ -91,22 +62,22 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
                 RowVersion = 1,
                 IsEmergency = true,
                 EmergencyExpiresAt = nowUtc.Add(ResponseWindow),
-                SubtotalAmount = request.UnitPrice,
+                SubtotalAmount = 0m,
                 DiscountAmount = 0m,
-                FinalAmount = request.UnitPrice
+                FinalAmount = 0m
             };
             booking.InitializeBooking(request.CustomerId);
 
             booking.BookingItems.Add(new BookingItem
             {
                 ServiceId = request.ServiceId,
-                TaskerId = request.TaskerId,
+                TaskerId = null, // chưa gán — treo mở cho mọi thợ trong vòng
                 StartAt = startAtUtc,
                 EndAt = endAtUtc,
                 Quantity = 1,
                 DurationMinutes = (int)(endAtUtc - startAtUtc).TotalMinutes,
-                UnitPrice = request.UnitPrice,
-                TotalPrice = request.UnitPrice,
+                UnitPrice = 0m,
+                TotalPrice = 0m,
                 Status = (short)BookingStatus.Pending,
                 RowVersion = 1
             });
@@ -123,58 +94,25 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
                 Geom = geom
             };
 
-            // 6. Thông báo (bảng notifications) cho thợ — được lưu cùng transaction với booking.
-            _context.Notifications.Add(NotificationBuilder.Build(
-                request.TaskerId,
-                NotificationType.EmergencyBooking,
-                "Đơn khẩn cấp!",
-                $"Có khách cần {service.Name} gấp, cách bạn {distanceKm}km. Phản hồi trong 30 giây."));
+            // 4. Lưu đơn (không cần advisory lock/buffer ở bước tạo vì chưa biết thợ — sẽ kiểm tra khi thợ nhận).
+            await _bookingRepository.SaveAggregateAsync(booking);
 
-            // 7. Lưu Aggregate (booking + item + address + notification) — CHỐNG DOUBLE-BOOKING:
-            //    giữ advisory lock theo thợ + kiểm tra đệm di chuyển trong cùng transaction rồi commit.
-            await _unitOfWork.BeginTransactionAsync();
-            try
-            {
-                await _context.AcquireTaskerScheduleLockAsync(request.TaskerId, ct);
-
-                await TravelBufferGuard.EnsureTravelFeasibleAsync(
-                    _context, _buffer, request.TaskerId, startAtUtc, endAtUtc, request.Latitude, request.Longitude, ct);
-
-                await _bookingRepository.SaveAggregateAsync(booking);
-                await _unitOfWork.CommitTransactionAsync();
-            }
-            catch (DbUpdateException ex) when (IsExclusionViolation(ex))
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                throw new BadRequestException("Thợ vừa nhận một việc khác trùng giờ. Vui lòng chọn thợ khác.");
-            }
-            catch
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                throw;
-            }
+            // 5. Quét thợ đủ điều kiện trong vòng đầu (5km) để controller bắn SignalR. Rỗng cũng không sao:
+            //    frontend sẽ tự re-broadcast nới bán kính.
+            var taskers = await EmergencyTaskerFinder.FindEligibleAsync(
+                _context, request.ServiceId, request.Latitude, request.Longitude, InitialRadiusKm, ct);
 
             var response = new CreateEmergencyBookingResponse(
                 booking.BookingId,
-                request.TaskerId,
                 service.Name,
                 request.AddressLine,
-                booking.FinalAmount,
-                distanceKm,
-                (int)ResponseWindow.TotalSeconds);
+                request.Latitude,
+                request.Longitude,
+                (int)ResponseWindow.TotalSeconds,
+                InitialRadiusKm,
+                taskers);
 
-            return ApiResponse<CreateEmergencyBookingResponse>.Success(response, "Đã gửi yêu cầu khẩn cấp tới thợ.");
-        }
-
-        // Nhận diện lỗi exclusion constraint (Postgres SQLSTATE 23P01) qua reflection.
-        private static bool IsExclusionViolation(Exception ex)
-        {
-            for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
-            {
-                var sqlState = inner.GetType().GetProperty("SqlState")?.GetValue(inner) as string;
-                if (sqlState == "23P01") return true;
-            }
-            return false;
+            return ApiResponse<CreateEmergencyBookingResponse>.Success(response, "Đã tạo yêu cầu khẩn cấp, đang tìm thợ.");
         }
     }
 }

@@ -52,5 +52,13 @@ namespace HomeServicePlatform.Application.Common.Interfaces
         /// Khóa tự nhả khi transaction kết thúc (commit/rollback). Phải gọi bên trong một transaction.
         /// </summary>
         Task AcquireTaskerScheduleLockAsync(long taskerId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Giữ advisory lock theo ĐƠN (pg_advisory_xact_lock) trong transaction hiện tại — tuần tự hóa
+        /// việc "giành" một đơn khẩn cấp broadcast: nhiều thợ cùng bấm nhận thì chỉ thợ vào lock trước
+        /// mới thấy đơn còn Pending và thắng, các thợ sau thấy đơn đã Accepted. Khóa tự nhả khi
+        /// transaction kết thúc. Phải gọi bên trong một transaction.
+        /// </summary>
+        Task AcquireBookingClaimLockAsync(long bookingId, CancellationToken cancellationToken = default);
     }
 }
