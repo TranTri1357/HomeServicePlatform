@@ -40,7 +40,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerServic
                             c.Name,
                             subPrice != null ? subPrice.Price : 0, // 🟢 Lấy từ bảng giá phụ
                             s.DurationMinutes,
-                            s.IsActive // 🟢 Lấy trạng thái hoạt động trực tiếp từ bảng gốc Services (hoặc s.IsDeleted tùy logic)
+                            s.IsActive, // 🟢 Lấy trạng thái hoạt động trực tiếp từ bảng gốc Services (hoặc s.IsDeleted tùy logic)
+                            s.ImageUrl
                         );
 
             // Thực thi truy vấn bất đồng bộ tối ưu hóa hiệu năng
