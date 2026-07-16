@@ -27,6 +27,8 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Tasker
             entity.Property(e => e.VerifiedAt).HasColumnName("verified_at");
             entity.Property(e => e.ExperienceYears).HasColumnName("experience_years").HasDefaultValue(0);
             entity.Property(e => e.CurrentGeom).HasColumnName("current_geom");
+            entity.Property(e => e.VerificationImageUrl).HasColumnName("verification_image_url").HasMaxLength(500);
+            entity.Property(e => e.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(500);
             entity.Property(e => e.RatingAvg).HasColumnName("rating_avg").HasColumnType("decimal(3,2)").HasDefaultValue(0m);
             entity.Property(e => e.TotalReviews).HasColumnName("total_reviews").HasDefaultValue(0);
             entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue((short)0);

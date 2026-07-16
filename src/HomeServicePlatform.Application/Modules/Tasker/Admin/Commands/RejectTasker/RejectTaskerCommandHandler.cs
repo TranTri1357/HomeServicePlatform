@@ -27,7 +27,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Commands.RejectTa
             if (tasker.Status == 1)
                 throw new BadRequestException("Không thể từ chối hồ sơ thợ đã được duyệt và đang hoạt động.");
 
-            tasker.Status = 2; // 2: khóa
+            tasker.RejectProfile(request.Reason);
 
             await _context.SaveChangesAsync(ct);
 
