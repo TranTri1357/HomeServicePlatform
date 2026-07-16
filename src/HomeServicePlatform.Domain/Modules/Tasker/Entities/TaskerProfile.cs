@@ -17,6 +17,14 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
         public DateTimeOffset? VerifiedAt { get; set; }
         public int ExperienceYears { get; set; } = 0;
         public Point? CurrentGeom { get; set; }
+
+        // Ảnh giấy tờ (CCCD/chứng chỉ) thợ nộp để admin đối chiếu trước khi duyệt.
+        // Nullable vì các hồ sơ tạo trước tính năng này không có ảnh; hồ sơ mới bị
+        // validator chặn nếu thiếu.
+        public string? VerificationImageUrl { get; set; }
+
+        // Lý do admin từ chối, để thợ biết phải sửa gì mà nộp lại.
+        public string? RejectionReason { get; set; }
         public decimal RatingAvg { get; set; } = 0;
         public int TotalReviews { get; set; } = 0;
         public short Status { get; set; } = 0;
@@ -45,6 +53,28 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
             IsVerified = true;
             VerifiedAt = DateTimeOffset.UtcNow;
             Status = 1;
+            RejectionReason = null;
+        }
+
+        /// <summary>Admin từ chối hồ sơ kèm lý do để thợ biết đường sửa và nộp lại.</summary>
+        public void RejectProfile(string? reason)
+        {
+            Status = 2;
+            RejectionReason = reason;
+        }
+
+        /// <summary>
+        /// Thợ nộp lại hồ sơ đã bị từ chối: cập nhật nội dung mới rồi đưa về hàng chờ duyệt.
+        /// Không có bước này thì hồ sơ bị từ chối sẽ kẹt vĩnh viễn ở Status=2.
+        /// </summary>
+        public void ResubmitForApproval(string? bio, int experienceYears, Point currentGeom, string verificationImageUrl)
+        {
+            Bio = bio;
+            ExperienceYears = experienceYears;
+            CurrentGeom = currentGeom;
+            VerificationImageUrl = verificationImageUrl;
+            Status = 0;
+            RejectionReason = null;
         }
 
 

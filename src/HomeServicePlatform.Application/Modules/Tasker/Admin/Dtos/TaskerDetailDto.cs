@@ -17,6 +17,9 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Dtos
         bool IsVerified,
         DateTimeOffset? VerifiedAt,
 
+        string? VerificationImageUrl, // Ảnh giấy tờ để admin đối chiếu trước khi duyệt
+        string? RejectionReason,      // Lý do lần từ chối gần nhất (null nếu chưa từng bị từ chối)
+
         decimal RatingAvg,
         int TotalReviews,
 
