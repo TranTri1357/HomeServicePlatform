@@ -36,7 +36,9 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetPop
                     // Chỉ lấy những mức giá đang có hiệu lực (EffectiveTo là null hoặc lớn hơn hiện tại)
                     StartingPrice = s.TaskerServicePrices
                         .Where(p => p.EffectiveTo == null || p.EffectiveTo > DateTimeOffset.UtcNow)
-                        .Min(p => (decimal?)p.Price) ?? 0
+                        .Min(p => (decimal?)p.Price) ?? 0,
+
+                    ImageUrl = s.ImageUrl
                 })
                 .OrderByDescending(s => s.TotalBookings)
                 .Take(request.Limit)

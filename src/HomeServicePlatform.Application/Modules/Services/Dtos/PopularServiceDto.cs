@@ -14,5 +14,7 @@ namespace HomeServicePlatform.Application.Modules.Services.Dtos
         public int TotalBookings { get; set; }
 
         public decimal StartingPrice { get; set; }
+
+        public string? ImageUrl { get; set; }
     }
 }
