@@ -49,8 +49,13 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
             RuleFor(x => x.ServiceId)
                 .GreaterThan(0).WithMessage("Mã dịch vụ con không hợp lệ.");
 
-            RuleFor(x => x.UnitPrice)
-                .GreaterThan(0).WithMessage("Đơn giá của từng dịch vụ phải lớn hơn 0.");
+            // 🛡️ Bắt buộc chọn thợ cụ thể để server tra được ĐƠN GIÁ NIÊM YẾT thật.
+            RuleFor(x => x.TaskerId)
+                .NotNull().WithMessage("Vui lòng chọn thợ cho từng hạng mục dịch vụ.")
+                .Must(id => id is null || id > 0).WithMessage("Mã thợ không hợp lệ.");
+
+            // ⚠️ KHÔNG validate UnitPrice: server tự tra giá niêm yết và bỏ qua giá client gửi
+            //    (chống giả mạo giá). Giữ field trong DTO chỉ để tương thích payload cũ.
 
             RuleFor(x => x.Quantity)
                 .GreaterThan(0).WithMessage("Số lượng đặt lịch tối thiểu của một hạng mục là 1.");

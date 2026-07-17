@@ -24,27 +24,53 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
             _strategies = strategies;
         }
 
+        // 💰 Tỷ lệ đặt cọc (khớp với frontend). Cọc 30%, phần còn lại trả khi hoàn thành.
+        private const decimal DepositRate = 0.30m;
+
         public async Task<ApiResponse<CheckoutResponse>> Handle(ProcessCheckoutCommand request, CancellationToken ct)
         {
-            // 1. Ràng buộc dữ liệu cơ bản
-            if (request.Amount <= 0)
-                throw new BadRequestException("Số tiền yêu cầu thanh toán bắt buộc phải lớn hơn 0.");
+            // 1. 🛡️ Nạp đơn và XÁC THỰC QUYỀN + TRẠNG THÁI trước khi cho thanh toán.
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.BookingId == request.BookingId, ct);
+            if (booking == null)
+                throw new NotFoundException($"Không tìm thấy đơn đặt lịch #{request.BookingId}.");
 
-            // 2. Phân phối chính xác Strategy cần chạy dựa trên thuộc tính Method khách gửi lên
+            // Chỉ chủ đơn mới được thanh toán đơn của mình (chống thanh toán hộ / dò BookingId).
+            if (booking.CustomerId != request.CustomerId)
+                throw new ForbiddenException("Bạn không có quyền thanh toán đơn hàng của người khác.");
+
+            // Chỉ thanh toán khi đơn còn chờ (Pending). Đơn đã nhận/hủy/hoàn thành thì không cho.
+            if (booking.Status != Domain.Modules.Bookings.Enums.BookingStatus.Pending)
+                throw new BadRequestException("Đơn hàng không ở trạng thái chờ thanh toán.");
+
+            // Chống trả tiền 2 lần: đã có giao dịch Paid cho đơn này thì chặn.
+            var alreadyPaid = await _context.Payments
+                .AnyAsync(p => p.BookingId == request.BookingId && p.Status == (short)PaymentStatus.Paid, ct);
+            if (alreadyPaid)
+                throw new BadRequestException("Đơn hàng này đã được thanh toán trước đó.");
+
+            // 2. 💰 SỐ TIỀN DO SERVER TÍNH từ FinalAmount — KHÔNG tin số client gửi.
+            decimal amount = request.IsDeposit
+                ? Math.Round(booking.FinalAmount * DepositRate, 0, MidpointRounding.AwayFromZero)
+                : booking.FinalAmount;
+            if (amount <= 0)
+                throw new BadRequestException("Số tiền cần thanh toán của đơn không hợp lệ.");
+
+            // 3. Phân phối chính xác Strategy cần chạy dựa trên thuộc tính Method khách gửi lên
             var strategy = _strategies.FirstOrDefault(s => s.Method == request.Method);
             if (strategy == null)
                 throw new BadRequestException("Phương thức thanh toán này hiện chưa được hệ thống hỗ trợ tích hợp.");
 
             var now = DateTimeOffset.UtcNow;
 
-            // 3. Thực thi logic riêng biệt của cổng thanh toán đó (Trừ tiền ví hoặc sinh link QR)
-            var strategyResult = await strategy.ProcessPaymentAsync(request.BookingId, request.Amount, ct);
+            // 4. Thực thi logic riêng biệt của cổng thanh toán đó (Trừ tiền ví hoặc sinh link QR)
+            var strategyResult = await strategy.ProcessPaymentAsync(request.BookingId, amount, ct);
 
-            // 4. Khởi tạo bản ghi thanh toán đồng bộ đúng cấu trúc Database PostgreSQL của bạn
+            // 5. Khởi tạo bản ghi thanh toán đồng bộ đúng cấu trúc Database PostgreSQL của bạn
             var payment = new Payment
             {
                 BookingId = request.BookingId,
-                Amount = request.Amount,
+                Amount = amount,
                 Method = (short)request.Method,
                 // Ví nội bộ thành công ngay -> Paid(2); cổng thứ 3 / tiền mặt -> Pending(1) chờ xác nhận.
                 Status = (short)(strategyResult.IsInstantSuccess ? PaymentStatus.Paid : PaymentStatus.Pending),

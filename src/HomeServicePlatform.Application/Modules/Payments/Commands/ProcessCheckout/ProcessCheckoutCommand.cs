@@ -15,11 +15,13 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
         string? PaymentUrl
     );
 
-    // Dữ liệu tiếp nhận yêu cầu thanh toán từ Client gửi lên
+    // Dữ liệu tiếp nhận yêu cầu thanh toán từ Client gửi lên.
+    // ⚠️ KHÔNG nhận số tiền từ client (chống giả mạo). Server tự tính từ Booking.FinalAmount;
+    //    IsDeposit=true -> chỉ thu cọc 30%, phần còn lại trả khi hoàn thành.
     public record ProcessCheckoutCommand(
         long CustomerId,
         long BookingId,
-        decimal Amount,
+        bool IsDeposit,
         PaymentMethod Method // 1: SystemWallet, 2: MoMo, 3: ZaloPay, 4: VNPAY, 5: Cash
     ) : IRequest<ApiResponse<CheckoutResponse>>;
 }

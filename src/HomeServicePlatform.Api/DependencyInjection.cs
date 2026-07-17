@@ -29,7 +29,18 @@ namespace HomeServicePlatform.Api
 
             // Đọc cấu hình JWT
             var jwtSettings = configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["Secret"]!;
+            var secretKey = jwtSettings["Secret"];
+
+            // 🔐 Secret KHÔNG còn nằm trong appsettings.json (đã gỡ). Bắt buộc nạp qua
+            // User Secrets (dev) hoặc biến môi trường JwtSettings__Secret (production).
+            // Fail-fast với thông báo rõ ràng thay vì lỗi khó hiểu khi validate token.
+            if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Length < 32)
+            {
+                throw new InvalidOperationException(
+                    "JwtSettings:Secret chưa được cấu hình (hoặc quá ngắn < 32 ký tự). " +
+                    "Đặt qua `dotnet user-secrets set \"JwtSettings:Secret\" \"...\"` khi chạy local, " +
+                    "hoặc biến môi trường JwtSettings__Secret trên server. Xem README.");
+            }
 
             // Đăng ký hệ thống Authentication của ASP.NET Core
             services.AddAuthentication(options =>

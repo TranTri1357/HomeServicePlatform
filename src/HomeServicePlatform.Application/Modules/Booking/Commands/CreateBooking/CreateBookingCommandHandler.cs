@@ -81,6 +81,24 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
                 await _context.SaveChangesAsync(cancellationToken);
             }
 
+            // 1c. 🛡️ CHỐNG GIẢ MẠO GIÁ: mỗi hạng mục BẮT BUỘC phải chọn 1 thợ cụ thể để
+            //     server tra được đơn giá NIÊM YẾT thật. KHÔNG tin đơn giá client gửi lên.
+            if (request.BookingItems.Any(i => !i.TaskerId.HasValue))
+            {
+                throw new BadRequestException("Mỗi hạng mục dịch vụ phải chọn một thợ cụ thể để xác định giá.");
+            }
+
+            // 1d. Nạp sẵn BẢNG GIÁ NIÊM YẾT còn hiệu lực cho các cặp (thợ, dịch vụ) trong đơn.
+            //     Đây là NGUỒN GIÁ DUY NHẤT server tin — client gửi gì cũng bị bỏ qua.
+            var taskerIds = request.BookingItems.Select(i => i.TaskerId!.Value).Distinct().ToList();
+            var serviceIds = request.BookingItems.Select(i => i.ServiceId).Distinct().ToList();
+            var priceRows = await _context.TaskerServicePrices
+                .Where(p => taskerIds.Contains(p.TaskerId)
+                            && serviceIds.Contains(p.ServiceId)
+                            && p.EffectiveFrom <= nowUtc
+                            && (p.EffectiveTo == null || p.EffectiveTo > nowUtc))
+                .ToListAsync(cancellationToken);
+
             // 2. Khởi tạo đối tượng Root: Booking (Chưa gán tổng tiền)
             var booking = new Domain.Modules.Bookings.Entities.Booking
             {
@@ -110,26 +128,41 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
                     throw new BadRequestException($"Dịch vụ mã #{item.ServiceId} có thời gian kết thúc bắt buộc phải lớn hơn thời gian bắt đầu.");
                 }
 
-                decimal itemTotalPrice = item.UnitPrice * item.Quantity;
+                // 🛡️ Lấy ĐƠN GIÁ THẬT từ bảng niêm yết (mới nhất còn hiệu lực). Bỏ qua item.UnitPrice.
+                var listedPrice = priceRows
+                    .Where(p => p.TaskerId == item.TaskerId!.Value && p.ServiceId == item.ServiceId)
+                    .OrderByDescending(p => p.EffectiveFrom)
+                    .Select(p => (decimal?)p.Price)
+                    .FirstOrDefault();
+
+                if (listedPrice is null)
+                {
+                    throw new BadRequestException($"Thợ chưa niêm yết giá cho dịch vụ #{item.ServiceId}. Vui lòng chọn thợ hoặc dịch vụ khác.");
+                }
+
+                decimal serverUnitPrice = listedPrice.Value;
+                decimal itemTotalPrice = serverUnitPrice * item.Quantity;
                 totalSubtotalAmount += itemTotalPrice;
 
                 booking.BookingItems.Add(new BookingItem
                 {
                     ServiceId = item.ServiceId,
-                    TaskerId = item.TaskerId, // Có thể null nếu hệ thống tự phân phối sau
+                    TaskerId = item.TaskerId, // Đã đảm bảo not-null ở bước 1c
                     StartAt = startAtUtc,
                     EndAt = endAtUtc,
                     Quantity = item.Quantity,
                     DurationMinutes = durationMinutes,
-                    UnitPrice = item.UnitPrice,
+                    UnitPrice = serverUnitPrice, // 🛡️ Giá server, KHÔNG phải giá client gửi
                     TotalPrice = itemTotalPrice,
                     Status = (short)BookingStatus.Pending, // Ép kiểu Enum sang short khớp cột smallint trong DB
                     RowVersion = 1
                 });
             }
 
-            // 4. Tính toán tài chính gộp cho toàn bộ khối Aggregate sau khi duyệt xong mảng con
-            decimal discount = request.DiscountAmount ?? 0m;
+            // 4. Tính toán tài chính gộp cho toàn bộ khối Aggregate sau khi duyệt xong mảng con.
+            //    Giai đoạn này CHƯA có hệ thống mã khuyến mãi thật -> ép discount = 0 (không nhận
+            //    DiscountAmount từ client để tránh khách tự đặt giảm giá về 0đ). Mở lại khi có coupon.
+            decimal discount = 0m;
             booking.SubtotalAmount = totalSubtotalAmount;
             booking.DiscountAmount = discount;
             booking.FinalAmount = Math.Max(0m, totalSubtotalAmount - discount);
