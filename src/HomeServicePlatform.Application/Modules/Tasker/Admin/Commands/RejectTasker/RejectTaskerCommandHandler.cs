@@ -1,6 +1,8 @@
 ﻿using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Domain.Modules.Operations.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -24,10 +26,22 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Commands.RejectTa
             if (tasker == null || tasker.IsDeleted)
                 throw new NotFoundException("Không tìm thấy hồ sơ thợ hoặc hồ sơ đã bị xóa.");
 
-            if (tasker.Status == 1)
-                throw new BadRequestException("Không thể từ chối hồ sơ thợ đã được duyệt và đang hoạt động.");
+            // Từ chối CHỈ áp cho hồ sơ đang chờ duyệt. Thợ đã hoạt động (1) / tạm nghỉ (3) thì
+            // dùng chức năng Khóa; đã từ chối rồi (4) thì khỏi từ chối lại. Tách bạch hai trục
+            // "duyệt/từ chối" (cho hồ sơ chờ) và "khóa/mở" (cho thợ đã duyệt).
+            if (tasker.Status != 0)
+                throw new BadRequestException("Chỉ có thể từ chối hồ sơ đang ở trạng thái chờ duyệt.");
 
-            tasker.Status = 2; // 2: khóa
+            tasker.RejectProfile(request.Reason);
+
+            var body = string.IsNullOrWhiteSpace(request.Reason)
+                ? "Hồ sơ của bạn chưa được duyệt. Vui lòng bổ sung thông tin và nộp lại."
+                : $"Hồ sơ của bạn chưa được duyệt. Lý do: {request.Reason}. Vui lòng bổ sung và nộp lại.";
+            _context.Notifications.Add(NotificationBuilder.Build(
+                tasker.TaskerProfileId,
+                NotificationType.ProfileRejected,
+                "Hồ sơ chưa được duyệt",
+                body));
 
             await _context.SaveChangesAsync(ct);
 

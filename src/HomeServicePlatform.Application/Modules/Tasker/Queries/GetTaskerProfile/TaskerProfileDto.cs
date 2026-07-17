@@ -16,6 +16,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfil
         int TotalReviews,
         int CompletedJobsCount, // Số lượng việc đã thực hiện dựa trên bookingitem
         short Status,
-        string? Bio
+        string? Bio,
+        string? RejectionReason // Lý do admin từ chối (chỉ có khi Status=4) để thợ biết đường sửa
     );
 }
