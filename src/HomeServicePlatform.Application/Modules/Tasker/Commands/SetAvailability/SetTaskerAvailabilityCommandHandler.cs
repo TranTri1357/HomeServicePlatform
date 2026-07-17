@@ -35,6 +35,10 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.SetAvailabilit
             if (profile.Status == 2)
                 throw new BadRequestException("Hồ sơ đang bị khóa bởi quản trị viên.");
 
+            // Bị từ chối (Status 4): khác hẳn khóa — thợ cần bổ sung và nộp lại hồ sơ.
+            if (profile.Status == 4)
+                throw new BadRequestException("Hồ sơ của bạn đã bị từ chối. Vui lòng bổ sung thông tin và nộp lại để được duyệt.");
+
             // 🏠 Gate địa chỉ: chỉ khi BẬT nhận việc mới bắt buộc có địa chỉ hoạt động
             // (Phương án B: dùng chung bảng Address, khóa theo UserId == TaskerProfileId).
             // Tắt/tạm nghỉ thì không cần — thợ luôn được phép ẩn khỏi tìm thợ.

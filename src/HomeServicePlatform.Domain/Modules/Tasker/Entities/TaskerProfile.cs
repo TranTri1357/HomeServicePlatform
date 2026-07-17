@@ -56,16 +56,21 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
             RejectionReason = null;
         }
 
-        /// <summary>Admin từ chối hồ sơ kèm lý do để thợ biết đường sửa và nộp lại.</summary>
+        /// <summary>
+        /// Admin từ chối hồ sơ kèm lý do để thợ biết đường sửa và nộp lại.
+        /// Status=4 (bị từ chối) TÁCH RIÊNG khỏi Status=2 (bị admin khóa): từ chối là
+        /// "thiếu, sửa rồi nộp lại", khóa là hình phạt thợ không tự thoát được. Gộp chung
+        /// sẽ cho thợ bị khóa lách qua đường nộp lại.
+        /// </summary>
         public void RejectProfile(string? reason)
         {
-            Status = 2;
+            Status = 4;
             RejectionReason = reason;
         }
 
         /// <summary>
         /// Thợ nộp lại hồ sơ đã bị từ chối: cập nhật nội dung mới rồi đưa về hàng chờ duyệt.
-        /// Không có bước này thì hồ sơ bị từ chối sẽ kẹt vĩnh viễn ở Status=2.
+        /// Không có bước này thì hồ sơ bị từ chối sẽ kẹt vĩnh viễn ở Status=4.
         /// </summary>
         public void ResubmitForApproval(string? bio, int experienceYears, Point currentGeom, string verificationImageUrl)
         {

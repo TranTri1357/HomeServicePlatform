@@ -1,6 +1,8 @@
 ﻿using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Domain.Modules.Operations.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -25,6 +27,12 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Commands.ApproveT
                 throw new NotFoundException("Không tìm thấy hồ sơ thợ hoặc hồ sơ đã bị xóa.");
 
             tasker.VerifyTasker();
+
+            _context.Notifications.Add(NotificationBuilder.Build(
+                tasker.TaskerProfileId,
+                NotificationType.ProfileApproved,
+                "Hồ sơ đã được duyệt",
+                "Chúc mừng! Hồ sơ thợ của bạn đã được duyệt. Bạn có thể bật nhận việc ngay."));
 
             await _context.SaveChangesAsync(ct);
 
