@@ -52,7 +52,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfil
                 data.Profile.TotalReviews,
                 data.CompletedJobsCount,
                 (short)data.Profile.Status,
-                data.Profile.Bio
+                data.Profile.Bio,
+                data.Profile.RejectionReason
             );
 
             return ApiResponse<TaskerProfileDto>.Success(result, "Lấy dữ liệu hồ sơ thợ thành công.");

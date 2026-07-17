@@ -8,6 +8,8 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Enum
         BookingCancelledByCustomer = 2, // Khách hủy đơn
         NewReview = 3,                // Khách đánh giá thợ
         EmergencyBooking = 4,         // Khách gọi thợ khẩn cấp (đơn trực tiếp, cần phản hồi trong 30s)
+        ProfileApproved = 5,          // Admin duyệt hồ sơ thợ
+        ProfileRejected = 6,          // Admin từ chối hồ sơ thợ (kèm lý do trong body)
 
         // Gửi cho Khách
         BookingAccepted = 10,         // Thợ nhận đơn

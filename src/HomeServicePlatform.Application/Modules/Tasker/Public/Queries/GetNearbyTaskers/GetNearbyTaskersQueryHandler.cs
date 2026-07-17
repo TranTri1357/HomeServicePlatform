@@ -37,7 +37,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearb
                 .Where(t =>
                     !t.IsDeleted &&
                     t.CurrentGeom != null &&
-                    (t.Status == 1 || t.Status == 2) &&
+                    t.Status == 1 && // chỉ thợ đang nhận việc; loại thợ bị khóa(2)/tạm nghỉ(3)/từ chối(4)/chờ duyệt(0)
                     t.TaskerServices.Any(ts => ts.ServiceId == request.ServiceId) &&
                     t.CurrentGeom.Distance(customerLocation) <= radiusInDegrees)
                 .Select(t => new NearbyTaskerDto

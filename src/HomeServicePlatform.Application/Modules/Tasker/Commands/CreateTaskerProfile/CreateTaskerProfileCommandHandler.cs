@@ -32,12 +32,13 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.CreateTaskerPr
             // Validator đã bảo đảm Latitude/Longitude không null tới được đây.
             var currentLocation = geometryFactory.CreatePoint(new Coordinate(request.Longitude!.Value, request.Latitude!.Value));
 
-            // Hồ sơ đã bị admin từ chối (Status=2) thì cho nộp lại: cập nhật nội dung mới và
-            // đưa về hàng chờ duyệt. Không có nhánh này thì thợ bị từ chối sẽ kẹt vĩnh viễn
-            // vì vừa không tạo mới được, vừa không có đường sửa.
+            // Hồ sơ đã bị admin TỪ CHỐI (Status=4) thì cho nộp lại: cập nhật nội dung mới và
+            // đưa về hàng chờ duyệt. Không có nhánh này thì thợ bị từ chối sẽ kẹt vĩnh viễn.
+            // CHỈ Status=4 mới được nộp lại — Status=2 (bị khóa) KHÔNG, để thợ bị khóa không
+            // thể tự thoát trạng thái phạt bằng cách gọi lại API này.
             if (existingProfile != null)
             {
-                if (existingProfile.Status != 2)
+                if (existingProfile.Status != 4)
                     throw new BadRequestException("Tài khoản này đã có hồ sơ thợ.");
 
                 existingProfile.ResubmitForApproval(
