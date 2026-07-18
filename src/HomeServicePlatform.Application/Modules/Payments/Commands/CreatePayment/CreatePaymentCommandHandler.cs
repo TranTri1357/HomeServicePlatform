@@ -8,6 +8,7 @@ using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Payments.Entities;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Payments.Commands.CreatePayment
@@ -30,7 +31,7 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.CreatePaymen
                 BookingId = request.BookingId,
                 Amount = request.Amount,
                 Method = request.Method,
-                Status = 0, // 0: Pending (Chờ thanh toán)
+                Status = (short)PaymentStatus.Pending, // Chờ thanh toán
                 TransactionCode = null, // Sẽ cập nhật khi có mã từ cổng thanh toán
                 PaidAt = null,
                 CreatedAt = DateTimeOffset.UtcNow,

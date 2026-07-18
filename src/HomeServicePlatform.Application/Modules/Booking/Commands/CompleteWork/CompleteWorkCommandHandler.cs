@@ -9,7 +9,7 @@ using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Interface;
 using HomeServicePlatform.Domain.Modules.Operations.Enum;
-using HomeServicePlatform.Domain.Modules.Payments.Entities;
+using HomeServicePlatform.Domain.Modules.Payments.Constants;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -39,7 +39,7 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork
                 // hoặc thu tiền mặt khi hoàn thành).
                 booking.CompleteWorkAndPendingPayment(request.TaskerId);
 
-                await CreditTaskerEarningAsync(booking.BookingId, request.TaskerId, cancellationToken);
+                await SettleBookingFundsAsync(booking.BookingId, request.TaskerId, cancellationToken);
 
                 // 📈 Tăng độ tin cậy: đơn hoàn thành cộng vào CompletedCount của thợ.
                 var profile = await _context.TaskerProfiles
@@ -59,16 +59,25 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork
         }
 
         /// <summary>
-        /// Ghi có thu nhập (đã trừ hoa hồng) vào ví của thợ cho các hạng mục thợ đảm nhận
-        /// trong đơn. Ví của thợ dùng chung bảng Wallet, khóa theo UserId — mà UserId của
-        /// thợ chính là TaskerProfileId. Bản ghi WalletTransaction tham chiếu BookingId.
+        /// TẤT TOÁN đơn: giải phóng khoản sàn đang giữ hộ trong ví ký quỹ và chia làm hai đường —
+        /// thu nhập thực nhận về ví thợ, hoa hồng về ví doanh thu của sàn.
+        ///
+        /// Bút toán (tổng bằng 0):
+        ///     ví ký quỹ  − heldAmount
+        ///     ví thợ     + netTotal
+        ///     ví doanh thu + commission        (netTotal + commission = heldAmount)
+        ///
+        /// Ví của thợ dùng chung bảng Wallet, khóa theo UserId — mà UserId của thợ chính là
+        /// TaskerProfileId. Bản ghi WalletTransaction tham chiếu BookingId.
         /// </summary>
-        private async Task CreditTaskerEarningAsync(long bookingId, long taskerId, CancellationToken ct)
+        private async Task SettleBookingFundsAsync(long bookingId, long taskerId, CancellationToken ct)
         {
-            // Idempotent: nếu đơn này đã ghi có thu nhập rồi thì bỏ qua (phòng khi gọi lại).
-            var alreadyCredited = await _context.WalletTransactions.AnyAsync(
-                t => t.ReferenceId == bookingId && t.Type == (short)WalletTransactionType.Earning, ct);
-            if (alreadyCredited) return;
+            // Idempotent: khóa theo việc ví ký quỹ đã nhả tiền của đơn này hay chưa. Dùng EscrowOut
+            // (thay vì Earning) vì đó là vế LUÔN xuất hiện khi đơn được định đoạt — kể cả trường hợp
+            // thu nhập thực nhận bằng 0 (hoa hồng ăn hết) hay đơn đã được hoàn tiền trước đó.
+            var alreadySettled = await _context.WalletTransactions.AnyAsync(
+                t => t.ReferenceId == bookingId && t.Type == (short)WalletTransactionType.EscrowOut, ct);
+            if (alreadySettled) return;
 
             var items = await _context.BookingItems
                 .AsNoTracking()
@@ -79,6 +88,16 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork
             if (items.Count == 0) return;
 
             var now = DateTimeOffset.UtcNow;
+
+            // Số tiền HỆ THỐNG thực sự giữ cho đơn này = tổng các khoản đã thanh toán thành
+            // công (vd: tiền cọc 30%, hoặc trả hết). Phần chưa thu qua hệ thống, thợ đã/đang
+            // nhận tiền mặt trực tiếp từ khách nên KHÔNG cộng lại vào ví (tránh tính 2 lần).
+            decimal heldAmount = await _context.Payments
+                .Where(p => p.BookingId == bookingId && p.Status == (short)PaymentStatus.Paid)
+                .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
+
+            // Đơn thuần tiền mặt: sàn không giữ đồng nào nên không có gì để giải ngân.
+            if (heldAmount <= 0m) return;
 
             var commissions = await _context.Commissions
                 .AsNoTracking()
@@ -93,40 +112,50 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork
                 commissionTotal += CommissionResolver.CommissionOf(it.TotalPrice, rate);
             }
 
-            // Số tiền HỆ THỐNG thực sự giữ cho đơn này = tổng các khoản đã thanh toán thành
-            // công (vd: tiền cọc 30%, hoặc trả hết). Phần chưa thu qua hệ thống, thợ đã/đang
-            // nhận tiền mặt trực tiếp từ khách nên KHÔNG cộng lại vào ví (tránh tính 2 lần).
-            decimal heldAmount = await _context.Payments
-                .Where(p => p.BookingId == bookingId && p.Status == (short)PaymentStatus.Paid)
-                .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
+            // Không thể khấu hoa hồng nhiều hơn số đang giữ (vd đơn trả cọc một phần, hoa hồng tính
+            // trên giá trị đơn đầy đủ). Chặn tại đây để hai vế luôn khớp và ví ký quỹ không bị âm.
+            var commissionDue = Math.Round(Math.Min(commissionTotal, heldAmount), 2, MidpointRounding.AwayFromZero);
+            var netTotal = heldAmount - commissionDue;
 
-            // Thu nhập ghi vào ví = tiền sàn giữ − hoa hồng (sàn khấu hoa hồng từ khoản đã giữ,
-            // phần dư trả về ví thợ). Nếu ≤ 0 (vd đơn thuần tiền mặt, sàn chưa giữ đủ để khấu
-            // hoa hồng) thì không ghi có — thợ đã nhận tiền mặt trực tiếp.
-            decimal netTotal = heldAmount - commissionTotal;
+            // Nạp ba ví liên quan trong MỘT truy vấn.
+            var wallets = await WalletLedger.ResolveAsync(
+                _context,
+                new[] { taskerId, SystemAccounts.EscrowUserId, SystemAccounts.RevenueUserId },
+                ct);
 
-            if (netTotal <= 0m) return;
+            // Vế ghi NỢ — ví ký quỹ nhả toàn bộ khoản đang giữ của đơn.
+            WalletLedger.Debit(
+                wallets[SystemAccounts.EscrowUserId],
+                WalletTransactionType.EscrowOut,
+                heldAmount,
+                bookingId,
+                now,
+                note: $"Tất toán đơn BK{bookingId}",
+                insufficientMessage: $"Ví ký quỹ không đủ số dư để tất toán đơn BK{bookingId}.");
 
-            // Ví của thợ (lazy-create nếu chưa có).
-            var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == taskerId, ct);
-            if (wallet == null)
+            // Vế ghi CÓ (1) — thu nhập thực nhận của thợ.
+            if (netTotal > 0m)
             {
-                wallet = new Wallet { UserId = taskerId, Balance = 0m };
-                _context.Wallets.Add(wallet);
+                WalletLedger.Credit(
+                    wallets[taskerId],
+                    WalletTransactionType.Earning,
+                    netTotal,
+                    bookingId,
+                    now,
+                    note: $"Thu nhập đơn BK{bookingId}");
             }
 
-            var balanceBefore = wallet.Balance;
-            wallet.Balance += netTotal;
-
-            wallet.WalletTransactions.Add(new WalletTransaction
+            // Vế ghi CÓ (2) — hoa hồng về ví doanh thu (trước đây khoản này chỉ được tính rồi bỏ đi).
+            if (commissionDue > 0m)
             {
-                Type = (short)WalletTransactionType.Earning,
-                Amount = netTotal,
-                BalanceBefore = balanceBefore,
-                BalanceAfter = wallet.Balance,
-                ReferenceId = bookingId,
-                CreatedAt = now
-            });
+                WalletLedger.Credit(
+                    wallets[SystemAccounts.RevenueUserId],
+                    WalletTransactionType.Commission,
+                    commissionDue,
+                    bookingId,
+                    now,
+                    note: $"Hoa hồng đơn BK{bookingId}");
+            }
         }
     }
 }

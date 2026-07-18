@@ -24,6 +24,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Payments
             entity.Property(e => e.BalanceBefore).HasColumnName("balance_before").HasColumnType("decimal(18,2)");
             entity.Property(e => e.BalanceAfter).HasColumnName("balance_after").HasColumnType("decimal(18,2)");
             entity.Property(e => e.ReferenceId).HasColumnName("reference_id");
+            entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(200);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.Wallet).WithMany(p => p.WalletTransactions).HasForeignKey(d => d.WalletId).HasConstraintName("fk_wallet_transactions_wallet");

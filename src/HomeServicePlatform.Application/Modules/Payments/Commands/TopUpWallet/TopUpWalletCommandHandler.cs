@@ -2,12 +2,12 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
-using HomeServicePlatform.Domain.Modules.Payments.Entities;
+using HomeServicePlatform.Domain.Modules.Payments.Constants;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Application.Modules.Payments.Commands.TopUpWallet
 {
@@ -25,32 +25,34 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.TopUpWallet
             if (request.Amount <= 0)
                 throw new BadRequestException("Số tiền nạp phải lớn hơn 0.");
 
-            // Tạo ví lười (lazy) nếu khách chưa có ví.
-            var wallet = await _context.Wallets
-                .FirstOrDefaultAsync(w => w.UserId == request.CustomerId, ct);
+            // 🛡️ Hai ví hệ thống chỉ được biến động bởi bút toán nội bộ, không bao giờ qua API người dùng.
+            if (SystemAccounts.IsSystemAccount(request.CustomerId))
+                throw new ForbiddenException("Không thể thao tác trực tiếp trên ví hệ thống.");
 
-            if (wallet == null)
-            {
-                wallet = new Wallet { UserId = request.CustomerId, Balance = 0m };
-                _context.Wallets.Add(wallet);
-            }
+            // 🛡️ Lặp lại kiểm tra của validator: handler là hàng rào cuối, không phụ thuộc việc
+            // pipeline validation có được gắn hay không.
+            if (request.Method != PaymentMethod.Momo && request.Method != PaymentMethod.ZaloPay)
+                throw new BadRequestException("Chỉ hỗ trợ nạp ví qua MoMo hoặc ZaloPay.");
 
-            var balanceBefore = wallet.Balance;
-            wallet.Balance += request.Amount;
+            var wallet = await WalletLedger.ResolveOneAsync(_context, request.CustomerId, ct);
 
-            // Thêm qua navigation để EF tự gán WalletId (kể cả ví vừa tạo).
-            wallet.WalletTransactions.Add(new WalletTransaction
-            {
-                Type = (short)WalletTransactionType.TopUp,
-                Amount = request.Amount,
-                BalanceBefore = balanceBefore,
-                BalanceAfter = wallet.Balance,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+            // ĐẦU VÀO của dòng tiền: tiền từ bên ngoài đi vào hệ thống nên chỉ có một vế ghi có.
+            WalletLedger.Credit(
+                wallet,
+                WalletTransactionType.TopUp,
+                request.Amount,
+                referenceId: null,
+                now: DateTimeOffset.UtcNow,
+                note: $"Nạp qua {GatewayName(request.Method)}");
 
             await _context.SaveChangesAsync(ct);
 
-            return ApiResponse<decimal>.Success(wallet.Balance, "Nạp tiền vào ví thành công.");
+            return ApiResponse<decimal>.Success(
+                wallet.Balance,
+                $"Nạp tiền vào ví qua {GatewayName(request.Method)} thành công.");
         }
+
+        private static string GatewayName(PaymentMethod method)
+            => method == PaymentMethod.ZaloPay ? "ZaloPay" : "MoMo";
     }
 }

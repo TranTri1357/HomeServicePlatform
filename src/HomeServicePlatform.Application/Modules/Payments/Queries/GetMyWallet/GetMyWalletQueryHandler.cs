@@ -42,6 +42,7 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetMyWallet
                     t.Amount,
                     t.BalanceAfter,
                     t.ReferenceId,
+                    t.Note,
                     t.CreatedAt
                 })
                 .ToListAsync(ct);
@@ -53,7 +54,7 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetMyWallet
                     t.Amount,
                     t.BalanceAfter,
                     t.ReferenceId,
-                    BuildDescription(t.Type, t.ReferenceId),
+                    BuildDescription(t.Type, t.ReferenceId, t.Note),
                     t.CreatedAt))
                 .ToList();
 
@@ -68,8 +69,11 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetMyWallet
         }
 
         // Mô tả rõ lý do biến động số dư ví khách + số đơn liên quan (nếu có).
-        private static string BuildDescription(short type, long? bookingId)
+        // Ưu tiên Note đã ghi lúc tạo giao dịch vì nó cụ thể hơn (vd "Nạp qua MoMo").
+        private static string BuildDescription(short type, long? bookingId, string? note)
         {
+            if (!string.IsNullOrWhiteSpace(note)) return note;
+
             var bk = bookingId.HasValue ? $" đơn BK{bookingId.Value}" : string.Empty;
             return type switch
             {
