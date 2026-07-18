@@ -43,8 +43,8 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetPagedPayme
             // 3. Phân trang và map về Flat DTO
             var items = await query
                 .OrderByDescending(x => x.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(x => new PaymentLookupDto(
                     x.PaymentId,
                     x.BookingId,
@@ -60,8 +60,8 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetPagedPayme
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<PaymentLookupDto>>.Success(result, "Tải danh sách thanh toán thành công.");

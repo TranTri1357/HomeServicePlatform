@@ -31,8 +31,8 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Queries.GetM
             var totalCount = await query.CountAsync(ct);
 
             var items = await query
-                .Skip((request.PageNumber - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageNumber) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(n => new NotificationDto
                 {
                     NotificationId = n.NotificationId,
@@ -47,8 +47,8 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Queries.GetM
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageNumber,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageNumber),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<NotificationDto>>.Success(pagedResult, "Lấy danh sách thông báo thành công.");

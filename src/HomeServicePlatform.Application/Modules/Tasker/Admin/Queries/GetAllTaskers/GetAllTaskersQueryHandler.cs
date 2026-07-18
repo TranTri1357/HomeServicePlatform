@@ -39,8 +39,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Queries.GetAllTas
 
             var coreTaskers = await query
                 .OrderByDescending(t => t.User.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(t => new {
                     t.TaskerProfileId,
                     t.User.FullName,
@@ -79,8 +79,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Queries.GetAllTas
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<TaskerDto>>.Success(result, "Lấy danh sách thợ thành công.");

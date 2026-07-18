@@ -41,8 +41,8 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetAllS
 
             var items = await query
                 .OrderByDescending(x => x.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(x => new ServiceDto(
                     x.ServiceId,
                     x.Name,
@@ -58,8 +58,8 @@ namespace HomeServicePlatform.Application.Modules.Services.Admin.Queries.GetAllS
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<ServiceDto>>.Success(result, "Lấy danh sách dịch vụ thành công");

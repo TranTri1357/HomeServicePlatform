@@ -77,16 +77,16 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
 
             var totalCount = await projectedQuery.CountAsync(ct);
             var items = await projectedQuery
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .ToListAsync(ct);
 
             var result = new PagedResult<ServiceExplorerDto>
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<ServiceExplorerDto>>.Success(result, "Lấy danh sách dịch vụ thành công");

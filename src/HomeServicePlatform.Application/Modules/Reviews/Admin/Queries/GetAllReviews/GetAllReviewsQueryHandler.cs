@@ -37,8 +37,8 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Admin.Queries.GetAllRe
 
             var items = await query
                 .OrderByDescending(r => r.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(r => new ReviewLookupDto(
                     r.ReviewId,
                     r.Customer.FullName,
@@ -53,8 +53,8 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Admin.Queries.GetAllRe
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<ReviewLookupDto>>.Success(result, "Lấy danh sách đánh giá thành công.");

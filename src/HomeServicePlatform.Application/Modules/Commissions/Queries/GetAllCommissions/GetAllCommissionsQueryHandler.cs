@@ -33,8 +33,8 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Queries.GetAllComm
 
             var items = await query
                 .OrderByDescending(c => c.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(c => new CommissionDto(
                     c.CommissionId,
                     c.ServiceId,
@@ -51,8 +51,8 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Queries.GetAllComm
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<CommissionDto>>.Success(result, "Lấy danh sách hoa hồng thành công.");

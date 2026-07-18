@@ -38,8 +38,8 @@ namespace HomeServicePlatform.Application.Modules.Identity.Admin.Queries.GetAllU
 
             var items = await query
                 .OrderByDescending(u => u.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(u => new UserDto(
                     u.UserId,
                     u.FullName,
@@ -61,8 +61,8 @@ namespace HomeServicePlatform.Application.Modules.Identity.Admin.Queries.GetAllU
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<UserDto>>.Success(result, "Lấy danh sách khách hàng thành công.");

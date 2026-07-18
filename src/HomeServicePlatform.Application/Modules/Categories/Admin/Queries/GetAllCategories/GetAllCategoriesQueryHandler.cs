@@ -31,8 +31,8 @@ namespace HomeServicePlatform.Application.Modules.Categories.Admin.Queries.GetAl
 
             var items = await query
                 .OrderByDescending(c => c.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(c => new CategoryDto(
                     c.CategoryId,
                     c.IconUrl,
@@ -48,8 +48,8 @@ namespace HomeServicePlatform.Application.Modules.Categories.Admin.Queries.GetAl
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<CategoryDto>>.Success(result, "Lấy danh sách thành công.");
