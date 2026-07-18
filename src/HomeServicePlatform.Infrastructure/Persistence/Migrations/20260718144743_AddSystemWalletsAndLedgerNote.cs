@@ -26,13 +26,20 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 maxLength: 200,
                 nullable: true);
 
+            // ⚠️ Cột "status" được THÊM TAY vào danh sách dưới đây.
+            //    UserConfiguration seed Status = 0 (khóa), nhưng 0 đúng bằng giá trị mặc định của
+            //    kiểu short nên EF coi như "không gán" và bỏ hẳn cột khỏi lệnh INSERT. Cột lại có
+            //    HasDefaultValue((short)1) => hai tài khoản hệ thống sẽ nằm ở trạng thái ĐANG HOẠT
+            //    ĐỘNG, ngược hẳn với ý định. Ghi rõ giá trị ở đây để lấp lại lớp bảo vệ đó.
+            //    (Không sửa ModelSnapshot: snapshot và model đang khớp nhau ở chỗ cùng bỏ qua cột
+            //     này, thêm vào một bên sẽ khiến lần scaffold sau sinh ra thay đổi giả.)
             migrationBuilder.InsertData(
                 table: "users",
-                columns: new[] { "user_id", "created_at", "email", "full_name", "is_deleted", "last_login_at", "password_hash", "phone", "row_version", "updated_at" },
+                columns: new[] { "user_id", "created_at", "email", "full_name", "is_deleted", "last_login_at", "password_hash", "phone", "row_version", "status", "updated_at" },
                 values: new object[,]
                 {
-                    { 9000000001L, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "escrow@system.local", "Ví ký quỹ hệ thống", true, null, "$2a$11$SystemAccountNoLogin00abcdefghijklmnopqrstuvwxyz01234", "SYSTEM-ESCROW", 1, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)) },
-                    { 9000000002L, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "revenue@system.local", "Ví doanh thu hệ thống", true, null, "$2a$11$SystemAccountNoLogin00abcdefghijklmnopqrstuvwxyz01234", "SYSTEM-REVENUE", 1, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)) }
+                    { 9000000001L, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "escrow@system.local", "Ví ký quỹ hệ thống", true, null, "$2a$11$SystemAccountNoLogin00abcdefghijklmnopqrstuvwxyz01234", "SYSTEM-ESCROW", 1, (short)0, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)) },
+                    { 9000000002L, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "revenue@system.local", "Ví doanh thu hệ thống", true, null, "$2a$11$SystemAccountNoLogin00abcdefghijklmnopqrstuvwxyz01234", "SYSTEM-REVENUE", 1, (short)0, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)) }
                 });
 
             migrationBuilder.InsertData(

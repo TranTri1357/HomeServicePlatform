@@ -47,6 +47,13 @@ namespace HomeServicePlatform.Application.Common.Interfaces
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Vứt bỏ mọi thực thể đang được theo dõi, trả DbContext về trạng thái sạch. Dành cho
+        /// <c>ConcurrencyRetryBehavior</c>: một lệnh bị đụng độ đồng thời phải chạy lại trên dữ
+        /// liệu ĐỌC MỚI, không được dùng lại bản ghi cũ đã lỗi thời.
+        /// </summary>
+        void ResetTrackedChanges();
+
+        /// <summary>
         /// Giữ advisory lock theo thợ (pg_advisory_xact_lock) trong transaction hiện tại — dùng để
         /// tuần tự hóa việc đặt lịch của cùng một thợ, chống double-booking khi có nhiều request đồng thời.
         /// Khóa tự nhả khi transaction kết thúc (commit/rollback). Phải gọi bên trong một transaction.

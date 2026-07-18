@@ -120,5 +120,13 @@ namespace HomeServicePlatform.Infrastructure.Persistence
         /// </summary>
         public Task AcquireBookingClaimLockAsync(long bookingId, CancellationToken cancellationToken = default)
             => Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1, {(int)bookingId})", cancellationToken);
+
+        /// <summary>
+        /// Vứt bỏ toàn bộ thực thể đang được ChangeTracker theo dõi, đưa DbContext về trạng thái
+        /// sạch như vừa khởi tạo. Dùng khi một lệnh bị đụng độ đồng thời và cần CHẠY LẠI TỪ ĐẦU:
+        /// nếu không xóa, lần chạy lại sẽ tái sử dụng bản ghi cũ (số dư ví đã lỗi thời, các bản
+        /// ghi Added còn treo) và ghi sai tiếp.
+        /// </summary>
+        public void ResetTrackedChanges() => ChangeTracker.Clear();
     }
 }
