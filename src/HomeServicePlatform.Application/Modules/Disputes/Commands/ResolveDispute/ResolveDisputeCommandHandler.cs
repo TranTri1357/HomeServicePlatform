@@ -98,6 +98,34 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                                 ReferenceId = dispute.BookingId,
                                 CreatedAt = now
                             });
+
+                            // 📒 ĐỐI SOÁT: tạo bản ghi Refund để nhất quán với luồng khách/thợ hủy
+                            //    (RefundExecutor). Gắn vào 1 payment của đơn — ưu tiên khoản đã Paid,
+                            //    nếu đơn không có payment nào thì bỏ qua (không có gì để tham chiếu).
+                            var payment = await _context.Payments
+                                    .Where(p => p.BookingId == dispute.BookingId && p.Status == (short)PaymentStatus.Paid)
+                                    .OrderByDescending(p => p.CreatedAt)
+                                    .FirstOrDefaultAsync(ct)
+                                ?? await _context.Payments
+                                    .Where(p => p.BookingId == dispute.BookingId)
+                                    .OrderByDescending(p => p.CreatedAt)
+                                    .FirstOrDefaultAsync(ct);
+
+                            if (payment != null)
+                            {
+                                _context.Refunds.Add(new Refund
+                                {
+                                    PaymentId = payment.PaymentId,
+                                    BookingId = dispute.BookingId,
+                                    Amount = refundAmount,
+                                    Status = (short)RefundStatus.Completed,
+                                    InitiatedBy = (short)RefundInitiator.Admin,
+                                    RefundMethod = 0, // ví nội bộ
+                                    Reason = $"Hoàn theo phán quyết khiếu nại #{dispute.DisputeId}: {dispute.ResolutionNote}",
+                                    CreatedAt = now,
+                                    CompletedAt = now
+                                });
+                            }
                         }
 
                         // 5. Chốt gộp câu lệnh

@@ -22,8 +22,19 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         }
         [HttpGet("{id:long}/profile")]
         [ProducesResponseType(typeof(ApiResponse<TaskerProfileDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetTaskerProfile([FromRoute] long id)
         {
+            // 🔒 CHỐNG IDOR/LỘ PII: hồ sơ này chứa SĐT/email + lý do bị từ chối (thông tin riêng).
+            //    Thợ chỉ được xem hồ sơ CỦA CHÍNH MÌNH — id phải khớp với UserId trong token.
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long tokenUserId))
+                return Unauthorized();
+
+            if (id != tokenUserId)
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    ApiResponse<object>.Failure("Bạn chỉ có thể xem hồ sơ của chính mình."));
+
             var result = await _mediator.Send(new GetTaskerProfileQuery(id));
             return StatusCode(result.StatusCode, result);
         }
