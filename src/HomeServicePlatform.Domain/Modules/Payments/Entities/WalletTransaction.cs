@@ -15,6 +15,14 @@ namespace HomeServicePlatform.Domain.Modules.Payments.Entities
         public decimal BalanceBefore { get; set; }
         public decimal BalanceAfter { get; set; }
         public long? ReferenceId { get; set; }
+
+        /// <summary>
+        /// Diễn giải ngắn gọn cho giao dịch: cổng đã nạp ("Nạp qua MoMo") hoặc đích đã rút
+        /// ("Rút về Vietcombank ****3456"). ⚠️ Chỉ lưu thông tin ĐÃ CHE SỐ — không bao giờ
+        /// lưu đầy đủ số tài khoản hay số điện thoại.
+        /// </summary>
+        public string? Note { get; set; }
+
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
         public virtual Wallet Wallet { get; set; } = null!;

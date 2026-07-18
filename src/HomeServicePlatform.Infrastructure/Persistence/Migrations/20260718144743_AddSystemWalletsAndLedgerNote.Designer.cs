@@ -3,6 +3,7 @@ using System;
 using HomeServicePlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718144743_AddSystemWalletsAndLedgerNote")]
+    partial class AddSystemWalletsAndLedgerNote
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,7 +25,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "btree_gist");
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
@@ -95,11 +97,11 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 
                     b.HasKey("BookingId");
 
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_bookings_customer_id");
+
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_bookings_status");
-
-                    b.HasIndex("CustomerId", "CreatedAt")
-                        .HasDatabaseName("ix_bookings_customer_created");
 
                     b.ToTable("bookings", null, t =>
                         {
@@ -1197,11 +1199,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("duration_minutes");
 
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("image_url");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1288,11 +1285,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("rating_avg");
 
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("rejection_reason");
-
                     b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
@@ -1304,11 +1296,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("total_reviews");
-
-                    b.Property<string>("VerificationImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("verification_image_url");
 
                     b.Property<DateTimeOffset?>("VerifiedAt")
                         .HasColumnType("timestamp with time zone")
