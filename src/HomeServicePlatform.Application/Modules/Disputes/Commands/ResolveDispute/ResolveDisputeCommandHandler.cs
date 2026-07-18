@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
@@ -55,13 +56,13 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                         // 3. Cập nhật phán quyết của Admin
                         dispute.Status = request.NewStatus;
                         dispute.ResolutionNote = request.ResolutionNote.Trim();
-                        dispute.RefundAmount = request.RefundAmount ?? 0;
                         dispute.ResolvedAt = now;
                         dispute.UpdatedAt = now;
                         dispute.RowVersion += 1; // Tăng cờ bảo vệ phiên tiếp theo
 
                         // 4. 🟢 ĐỒNG BỘ DOANH NGHIỆP: Tự động điều chỉnh trạng thái đơn hàng (Booking)
                         var booking = await _context.Bookings
+                            .Include(b => b.BookingItems) // RefundExecutor cần để xác định thợ đảm nhận đơn
                             .FirstOrDefaultAsync(b => b.BookingId == dispute.BookingId, ct);
 
                         if (booking != null)
@@ -72,61 +73,50 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                             booking.UpdatedAt = now;
                         }
 
-                        // 4b. 💸 HOÀN TIỀN: Admin đồng ý hoàn (NewStatus == 1) và có số tiền hoàn > 0
-                        //     -> cộng thẳng vào ví của NGƯỜI KHIẾU NẠI (RaisedById) kèm giao dịch
-                        //     loại Refund. Chặn re-resolve ở trên đảm bảo không hoàn 2 lần.
-                        decimal refundAmount = request.RefundAmount ?? 0m;
-                        if (request.NewStatus == 1 && refundAmount > 0m)
+                        // 4b. 💸 HOÀN TIỀN — dùng CHUNG RefundExecutor với luồng khách/thợ hủy đơn.
+                        //
+                        //     Trước đây khối này tự cộng thẳng `wallet.Balance += refundAmount` mà
+                        //     KHÔNG có vế ghi nợ nào -> tiền sinh ra từ hư không, phá bất biến đối
+                        //     soát Σ(mọi ví) = tổng nạp − tổng rút. RefundExecutor giải phóng đúng
+                        //     khoản đang giữ ở ví ký quỹ (đơn đã tất toán thì ví doanh thu bù),
+                        //     chặn trần theo số THỰC THU, tạo bản ghi Refund và idempotent sẵn.
+                        decimal requestedRefund = request.RefundAmount ?? 0m;
+                        decimal actualRefunded = 0m;
+
+                        if (request.NewStatus == 1 && requestedRefund > 0m)
                         {
-                            var wallet = await _context.Wallets
-                                .FirstOrDefaultAsync(w => w.UserId == dispute.RaisedById, ct);
-                            if (wallet == null)
+                            if (booking == null)
+                                throw new BadRequestException("Không tìm thấy đơn hàng của ca khiếu nại nên không thể hoàn tiền.");
+
+                            // Người khiếu nại là KHÁCH -> hoàn cho khách. Là THỢ -> ghi thành khoản
+                            // bồi thường cho thợ (RefundExecutor không khấu hoa hồng khoản này).
+                            var raisedByCustomer = dispute.RaisedById == booking.CustomerId;
+
+                            var outcome = await RefundExecutor.IssueRefundAsync(
+                                _context,
+                                booking,
+                                refundAmount: raisedByCustomer ? requestedRefund : 0m,
+                                penaltyAmount: raisedByCustomer ? 0m : requestedRefund,
+                                RefundInitiator.Admin,
+                                $"Hoàn theo phán quyết khiếu nại #{dispute.DisputeId}: {dispute.ResolutionNote}",
+                                now,
+                                ct);
+
+                            actualRefunded = outcome.RefundedToCustomer + outcome.CompensatedToTasker;
+
+                            // Không im lặng bỏ qua: nếu đơn chưa thu được đồng nào qua hệ thống
+                            // (vd đơn tiền mặt) hoặc đã hoàn trước đó thì không có tiền để chuyển.
+                            // Báo rõ để admin biết, thay vì ghi nhận một con số không có thật.
+                            if (!outcome.Executed || actualRefunded <= 0m)
                             {
-                                wallet = new Wallet { UserId = dispute.RaisedById, Balance = 0m };
-                                _context.Wallets.Add(wallet);
-                            }
-
-                            var balanceBefore = wallet.Balance;
-                            wallet.Balance += refundAmount;
-
-                            wallet.WalletTransactions.Add(new WalletTransaction
-                            {
-                                Type = (short)WalletTransactionType.Refund,
-                                Amount = refundAmount,
-                                BalanceBefore = balanceBefore,
-                                BalanceAfter = wallet.Balance,
-                                ReferenceId = dispute.BookingId,
-                                CreatedAt = now
-                            });
-
-                            // 📒 ĐỐI SOÁT: tạo bản ghi Refund để nhất quán với luồng khách/thợ hủy
-                            //    (RefundExecutor). Gắn vào 1 payment của đơn — ưu tiên khoản đã Paid,
-                            //    nếu đơn không có payment nào thì bỏ qua (không có gì để tham chiếu).
-                            var payment = await _context.Payments
-                                    .Where(p => p.BookingId == dispute.BookingId && p.Status == (short)PaymentStatus.Paid)
-                                    .OrderByDescending(p => p.CreatedAt)
-                                    .FirstOrDefaultAsync(ct)
-                                ?? await _context.Payments
-                                    .Where(p => p.BookingId == dispute.BookingId)
-                                    .OrderByDescending(p => p.CreatedAt)
-                                    .FirstOrDefaultAsync(ct);
-
-                            if (payment != null)
-                            {
-                                _context.Refunds.Add(new Refund
-                                {
-                                    PaymentId = payment.PaymentId,
-                                    BookingId = dispute.BookingId,
-                                    Amount = refundAmount,
-                                    Status = (short)RefundStatus.Completed,
-                                    InitiatedBy = (short)RefundInitiator.Admin,
-                                    RefundMethod = 0, // ví nội bộ
-                                    Reason = $"Hoàn theo phán quyết khiếu nại #{dispute.DisputeId}: {dispute.ResolutionNote}",
-                                    CreatedAt = now,
-                                    CompletedAt = now
-                                });
+                                throw new BadRequestException(
+                                    "Không thể hoàn tiền cho đơn này: đơn chưa thu được khoản nào qua hệ thống, " +
+                                    "hoặc đã được hoàn trước đó. Đặt số tiền hoàn = 0 nếu muốn đóng ca khiếu nại mà không hoàn tiền.");
                             }
                         }
+
+                        // Ghi nhận số tiền THỰC TẾ đã chuyển, không phải số admin đề nghị.
+                        dispute.RefundAmount = actualRefunded;
 
                         // 5. Chốt gộp câu lệnh
                         await _context.SaveChangesAsync(ct);
