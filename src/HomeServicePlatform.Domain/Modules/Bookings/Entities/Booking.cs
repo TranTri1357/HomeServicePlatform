@@ -71,6 +71,7 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
 
         public void StartMovingByTasker(long taskerId, string? note = null)
         {
+            EnsureAssignedTasker(taskerId);
             if (this.Status != BookingStatus.Accepted)
                 throw new InvalidOperationException("Thợ phải xác nhận đơn trước khi báo di chuyển.");
 
@@ -79,6 +80,7 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
 
         public void StartWorkingByTasker(long taskerId, string? note = null)
         {
+            EnsureAssignedTasker(taskerId);
             if (this.Status != BookingStatus.OnTheWay)
                 throw new InvalidOperationException("Thợ phải bấm 'Đang di chuyển' trước khi báo bắt đầu làm.");
 
@@ -87,10 +89,21 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
 
         public void CompleteWorkAndPendingPayment(long taskerId, string? note = null)
         {
+            EnsureAssignedTasker(taskerId);
             if (this.Status != BookingStatus.InProgress)
                 throw new InvalidOperationException("Không thể hoàn thành dịch vụ chưa bấm bắt đầu.");
 
             UpdateStatusAndLog(BookingStatus.Completed, taskerId, note ?? "Công việc hoàn tất, chờ khách thanh toán và xác nhận hoàn thành.");
+        }
+
+        /// <summary>
+        /// 🔒 CHỐNG IDOR: chỉ thợ ĐƯỢC GÁN vào đơn mới được đẩy trạng thái đơn đó. Chặn việc một
+        /// thợ khác dò BookingId rồi thao tác lên đơn không phải của mình.
+        /// </summary>
+        private void EnsureAssignedTasker(long taskerId)
+        {
+            if (!this.BookingItems.Any(i => i.TaskerId == taskerId))
+                throw new InvalidOperationException("Bạn không phụ trách đơn này nên không thể thao tác.");
         }
 
         //public void ConfirmPaymentAndComplete(long systemOrAdminId, string? note = null)

@@ -3,16 +3,23 @@ using HomeServicePlatform.Application.Common.Responses;
 using System.Net;
 using System.Text.Json;
 using FluentValidation;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace HomeServicePlatform.Api.Middlewares
 {
     public class GlobalExceptionMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly IHostEnvironment _env;
+        private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
-        public GlobalExceptionMiddleware(RequestDelegate _next)
+        public GlobalExceptionMiddleware(
+            RequestDelegate next, IHostEnvironment env, ILogger<GlobalExceptionMiddleware> logger)
         {
-            this._next = _next;
+            _next = next;
+            _env = env;
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -27,7 +34,7 @@ namespace HomeServicePlatform.Api.Middlewares
             }
         }
 
-        private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";
             var statusCode = HttpStatusCode.InternalServerError; // Mặc định là lỗi 500
@@ -76,7 +83,10 @@ namespace HomeServicePlatform.Api.Middlewares
                 statusCode = HttpStatusCode.InternalServerError;
                 apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = "Đã xảy ra lỗi hệ thống nghiêm trọng. Vui lòng thử lại sau.";
-                apiResponse.Errors = new List<string> { exception.Message }; // Chỉ dùng khi dev, production nên ẩn
+                // 🔒 Luôn log đầy đủ ở server; CHỈ lộ chi tiết lỗi cho client khi chạy Development.
+                _logger.LogError(exception, "Lỗi hệ thống không xử lý được.");
+                if (_env.IsDevelopment())
+                    apiResponse.Errors = new List<string> { exception.Message };
                 break;
             }
 

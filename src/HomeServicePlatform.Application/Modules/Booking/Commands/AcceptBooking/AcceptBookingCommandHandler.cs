@@ -47,6 +47,11 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.AcceptBooking
                 return await AcceptEmergencyAsync(booking, request, cancellationToken);
 
             // ── Luồng đặt lịch thường (giữ nguyên hành vi cũ) ──
+            // 🔒 CHỐNG CƯỚP ĐƠN: đơn thường do khách chọn sẵn thợ; chỉ thợ ĐƯỢC GÁN mới được nhận.
+            //    (Đơn khẩn cấp "ai nhận trước thắng" đã tách nhánh ở trên, không qua đây.)
+            if (!booking.BookingItems.Any() || !booking.BookingItems.All(i => i.TaskerId == request.TaskerId))
+                throw new ForbiddenException("Đơn này được chỉ định cho thợ khác, bạn không thể nhận.");
+
             try
             {
                 booking.AcceptByTasker(request.TaskerId);

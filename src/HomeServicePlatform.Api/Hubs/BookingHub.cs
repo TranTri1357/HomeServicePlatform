@@ -1,7 +1,11 @@
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Api.Hubs
 {
@@ -13,6 +17,13 @@ namespace HomeServicePlatform.Api.Hubs
     [Authorize]
     public class BookingHub : Hub
     {
+        private readonly IApplicationDbContext _context;
+
+        public BookingHub(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
         public static string UserGroup(long userId) => $"user-{userId}";
 
         public override async Task OnConnectedAsync()
@@ -23,9 +34,25 @@ namespace HomeServicePlatform.Api.Hubs
             await base.OnConnectedAsync();
         }
 
-        public async Task StreamDriverLocation(string providerId, double latitude, double longitude)
+        /// <summary>
+        /// Thợ đẩy vị trí GPS khi đang tới / đang làm. 🔒 Danh tính thợ lấy TỪ TOKEN (không nhận
+        /// providerId từ client → chống giả mạo), và vị trí CHỈ gửi cho khách của đơn thợ đang
+        /// phục vụ (OnTheWay/InProgress) thay vì phát cho tất cả.
+        /// </summary>
+        public async Task StreamDriverLocation(double latitude, double longitude)
         {
-            await Clients.All.SendAsync("ReceiveDriverLocation", providerId, latitude, longitude);
+            if (!TryGetUserId(out var taskerId)) return;
+
+            var customerIds = await _context.Bookings.AsNoTracking()
+                .Where(b => (b.Status == BookingStatus.OnTheWay || b.Status == BookingStatus.InProgress)
+                            && b.BookingItems.Any(i => i.TaskerId == taskerId))
+                .Select(b => b.CustomerId)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var customerId in customerIds)
+                await Clients.Group(UserGroup(customerId))
+                    .SendAsync("ReceiveDriverLocation", taskerId, latitude, longitude);
         }
 
         private bool TryGetUserId(out long userId)
