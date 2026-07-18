@@ -17,7 +17,7 @@ namespace HomeServicePlatform.Api.Controllers.Admin
     /// </summary>
     [ApiController]
     [Route("api/admin/uploads")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")] // Đồng nhất quyền với các trang quản trị khác
     public class UploadController : ControllerBase
     {
         private const long MaxBytes = 3 * 1024 * 1024; // 3MB
