@@ -22,9 +22,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
 {
     public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, ApiResponse<CreateBookingResponse>>
     {
-        // ⏳ Thời gian giữ chỗ (TTL): đơn tạo xong mà không thanh toán trong khoảng này thì tự nhả slot.
-        private static readonly TimeSpan HoldTtl = TimeSpan.FromMinutes(15);
-
         private readonly IBookingRepository _bookingRepository;
         private readonly IUnitOfWork _unitOfWork; // 🟢 Tích hợp UnitOfWork quản lý Transaction gộp
         private readonly IApplicationDbContext _context;
@@ -51,35 +48,9 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
 
             var nowUtc = DateTimeOffset.UtcNow;
 
-            // 1b. ♻️ NHẢ CHỖ GIỮ HẾT HẠN (TTL): những đơn còn Pending, quá 15 phút mà chưa có
-            //     thanh toán thành công thì coi như bỏ dở -> hủy để trả slot cho người khác đặt.
-            //     Bước này cũng giúp constraint chống trùng không bị "kẹt" bởi đơn treo bỏ dở.
-            // "Đã chốt" = có thanh toán thành công (Status==1) HOẶC đơn tiền mặt (Status==0 & Method==Cash(2)).
-            // Chỉ nhả những đơn Pending quá hạn mà CHƯA chốt.
-            var expiredThreshold = nowUtc - HoldTtl;
-            var expiredHolds = await _context.Bookings
-                .Include(b => b.BookingItems)
-                .Where(b => b.Status == BookingStatus.Pending
-                            && b.CreatedAt < expiredThreshold
-                            && !_context.Payments.Any(p => p.BookingId == b.BookingId
-                                                           && (p.Status == (short)PaymentStatus.Paid
-                                                               || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))))
-                .ToListAsync(cancellationToken);
-
-            if (expiredHolds.Count > 0)
-            {
-                foreach (var stale in expiredHolds)
-                {
-                    stale.Status = BookingStatus.Cancelled;
-                    stale.UpdatedAt = nowUtc;
-                    foreach (var it in stale.BookingItems)
-                    {
-                        it.Status = (short)BookingStatus.Cancelled;
-                        it.UpdatedAt = nowUtc;
-                    }
-                }
-                await _context.SaveChangesAsync(cancellationToken);
-            }
+            // ♻️ Việc NHẢ CHỖ GIỮ HẾT HẠN (TTL) đã chuyển sang job nền
+            //    ExpiredBookingCleanupService (chạy định kỳ), không còn quét nội tuyến ở đây
+            //    để đường đặt đơn gọn nhẹ và slot vẫn được nhả đúng hạn kể cả khi không ai đặt mới.
 
             // 1c. 🛡️ CHỐNG GIẢ MẠO GIÁ: mỗi hạng mục BẮT BUỘC phải chọn 1 thợ cụ thể để
             //     server tra được đơn giá NIÊM YẾT thật. KHÔNG tin đơn giá client gửi lên.

@@ -2,6 +2,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace HomeServicePlatform.Api.Controllers.Public
 {
@@ -18,6 +19,7 @@ namespace HomeServicePlatform.Api.Controllers.Public
 
         [HttpGet("active")]
         [AllowAnonymous]
+        [OutputCache(Duration = 60, VaryByQueryKeys = new[] { "*" })]
         public async Task<IActionResult> GetActiveCategories([FromQuery] int? limit)
         {
             var query = new GetActiveCategoriesQuery { Limit = limit };

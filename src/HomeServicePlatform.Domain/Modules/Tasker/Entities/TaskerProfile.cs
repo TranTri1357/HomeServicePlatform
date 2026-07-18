@@ -85,7 +85,7 @@ namespace HomeServicePlatform.Domain.Modules.Tasker.Entities
 
         public void SuspendTasker()
         {
-            Status = 0;
+            Status = 2; // 2 = khóa (trước đây set nhầm 0 = chờ duyệt)
                         // Có thể thêm logic: Ghi log lý do khóa ở đây nếu bạn có bảng Log
         }
 

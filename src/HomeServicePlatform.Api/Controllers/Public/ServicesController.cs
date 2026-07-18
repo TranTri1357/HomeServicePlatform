@@ -4,6 +4,7 @@ using HomeServicePlatform.Application.Modules.Services.Public.Queries.GetService
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace HomeServicePlatform.Api.Controllers.Public
 {
@@ -20,6 +21,7 @@ namespace HomeServicePlatform.Api.Controllers.Public
 
         [HttpGet("popular")]
         [AllowAnonymous]
+        [OutputCache(Duration = 60, VaryByQueryKeys = new[] { "*" })]
         public async Task<IActionResult> GetPopularServices([FromQuery] int limit = 5)
         {
             var query = new GetPopularServicesQuery { Limit = limit };
@@ -29,6 +31,7 @@ namespace HomeServicePlatform.Api.Controllers.Public
 
         [HttpGet("explorer")]
         [AllowAnonymous]
+        [OutputCache(Duration = 60, VaryByQueryKeys = new[] { "*" })]
         public async Task<IActionResult> GetServicesExplorer([FromQuery] GetServicesExplorerQuery query)
         {
             var result = await _mediator.Send(query);
@@ -37,6 +40,7 @@ namespace HomeServicePlatform.Api.Controllers.Public
 
         [HttpGet("{id}")]
         [AllowAnonymous]
+        [OutputCache(Duration = 60, VaryByQueryKeys = new[] { "*" })]
         public async Task<IActionResult> GetServiceDetail(long id)
         {
             var query = new GetServiceDetailQuery { ServiceId = id };

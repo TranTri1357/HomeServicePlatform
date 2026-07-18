@@ -5,13 +5,17 @@ using HomeServicePlatform.Domain.Modules.Bookings.Interface;
 using HomeServicePlatform.Infrastructure.Identity;
 using HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 
 namespace HomeServicePlatform.Api
 {
@@ -19,10 +23,26 @@ namespace HomeServicePlatform.Api
     {
         public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
         {
+            // 🌐 CORS: KHÔNG mở cho mọi origin nữa. Chỉ cho phép các origin frontend đã biết.
+            //    Origin production cấu hình qua "Cors:AllowedOrigins" (appsettings/env),
+            //    cộng thêm các origin dev localhost mặc định bên dưới.
+            var configuredOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                                    ?? Array.Empty<string>();
+            var defaultDevOrigins = new[]
+            {
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+            };
+            var allowedOrigins = defaultDevOrigins.Concat(configuredOrigins)
+                                                  .Where(o => !string.IsNullOrWhiteSpace(o))
+                                                  .Distinct()
+                                                  .ToArray();
+
             services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", policy =>
-                    policy.AllowAnyOrigin()
+                options.AddPolicy("AllowFrontend", policy =>
+                    policy.WithOrigins(allowedOrigins)
                           .AllowAnyMethod()
                           .AllowAnyHeader());
             });
@@ -59,7 +79,8 @@ namespace HomeServicePlatform.Api
                     ValidIssuer = jwtSettings["Issuer"],
                     ValidAudience = jwtSettings["Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-                    ClockSkew = TimeSpan.Zero,
+                    // Dung sai 30s cho lệch giờ nhẹ giữa client/server (tránh 401 lẻ tẻ khi token vừa hết hạn).
+                    ClockSkew = TimeSpan.FromSeconds(30),
                     RoleClaimType = ClaimTypes.Role
                 };
 
@@ -154,6 +175,49 @@ namespace HomeServicePlatform.Api
                     }
                 });
             });
+
+            // 🚦 Rate limiting: chống brute-force / spam ở các endpoint xác thực.
+            //    Policy "auth" = 10 request/phút, phân vùng theo IP client.
+            //    Lưu ý: sau reverse proxy (Render), RemoteIpAddress có thể là IP proxy →
+            //    cân nhắc cấu hình ForwardedHeaders nếu muốn giới hạn chính xác theo IP thật.
+            services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.AddPolicy("auth", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            Window = TimeSpan.FromMinutes(1),
+                            PermitLimit = 10,
+                            QueueLimit = 0
+                        }));
+
+                // Trả 429 theo đúng khuôn ApiResponse để frontend xử lý đồng nhất.
+                options.OnRejected = async (context, token) =>
+                {
+                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    context.HttpContext.Response.ContentType = "application/json";
+                    var payload = new ApiResponse<object>
+                    {
+                        Succeeded = false,
+                        StatusCode = StatusCodes.Status429TooManyRequests,
+                        Message = "Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút."
+                    };
+                    var json = JsonSerializer.Serialize(payload,
+                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                    await context.HttpContext.Response.WriteAsync(json, token);
+                };
+            });
+
+            // ⏱️ Job nền dọn đơn đặt lịch hết hạn (nhả slot). Thay cho đoạn quét nội tuyến
+            //    trong CreateBooking trước đây.
+            services.AddHostedService<BackgroundJobs.ExpiredBookingCleanupService>();
+
+            // 🚀 Output caching cho các endpoint catalog công khai (ít thay đổi) — giảm tải DB.
+            //    Từng endpoint tự khai [OutputCache(...)]; ở đây chỉ bật hạ tầng.
+            services.AddOutputCache();
 
             // Đăng ký SignalR Hub nếu dùng
             services.AddSignalR();
