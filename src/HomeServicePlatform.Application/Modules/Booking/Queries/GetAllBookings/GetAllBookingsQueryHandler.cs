@@ -42,8 +42,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetAllBookings
 
             var items = await query
                 .OrderByDescending(x => x.b.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(x => new BookingLookupDto(
                     x.b.BookingId,
                     x.b.CustomerId,
@@ -59,8 +59,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetAllBookings
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<BookingLookupDto>>.Success(result, "Tải danh sách đơn đặt lịch thành công.");

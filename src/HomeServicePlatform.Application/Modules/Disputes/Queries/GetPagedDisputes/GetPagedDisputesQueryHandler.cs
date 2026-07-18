@@ -31,8 +31,8 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Queries.GetPagedDispu
 
             var items = await query
                 .OrderByDescending(x => x.d.CreatedAt)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))
+                .Take(PageSizeGuard.Clamp(request.PageSize))
                 .Select(x => new DisputeLookupDto(
                     x.d.DisputeId,
                     x.d.BookingId,
@@ -51,8 +51,8 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Queries.GetPagedDispu
             {
                 Items = items,
                 TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
+                PageIndex = PageSizeGuard.ClampIndex(request.PageIndex),
+                PageSize = PageSizeGuard.Clamp(request.PageSize)
             };
 
             return ApiResponse<PagedResult<DisputeLookupDto>>.Success(result, "Tải danh sách tranh chấp phân trang thành công.");

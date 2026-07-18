@@ -35,12 +35,17 @@ namespace HomeServicePlatform.Api
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
             // Configure the HTTP request pipeline.
-            app.UseSwagger();
-            app.UseSwaggerUI();
-
+            // Swagger chỉ bật ở Development, hoặc khi bật cờ "EnableSwagger" (để test tạm trên server).
+            if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger"))
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
 
             app.UseHttpsRedirection();
-            app.UseCors("AllowAll");
+            app.UseCors("AllowFrontend");
+            app.UseOutputCache(); // phải đứng sau UseCors, trước khi map endpoint
+            app.UseRateLimiter();
             app.UseAuthentication();
             app.UseAuthorization();
 
