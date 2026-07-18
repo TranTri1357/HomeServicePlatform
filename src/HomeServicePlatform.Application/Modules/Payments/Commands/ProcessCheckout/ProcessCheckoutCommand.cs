@@ -22,6 +22,6 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
         long CustomerId,
         long BookingId,
         bool IsDeposit,
-        PaymentMethod Method // 1: SystemWallet, 2: MoMo, 3: ZaloPay, 4: VNPAY, 5: Cash
+        PaymentMethod Method // 1: Wallet, 2: Cash, 3: Momo, 4: ZaloPay
     ) : IRequest<ApiResponse<CheckoutResponse>>;
 }

@@ -40,6 +40,20 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
                     // Lặp qua từng phần tử trong mảng để áp dụng bộ luật chuyên biệt bên dưới
                     item.SetValidator(new BookingItemDtoValidator());
                 });
+
+            // 3. 🛡️ MỘT ĐƠN = MỘT THỢ.
+            //    Về cấu trúc, TaskerId nằm ở TỪNG hạng mục nên schema cho phép mỗi hạng mục một
+            //    thợ khác nhau. Nhưng phần TIỀN chưa hỗ trợ điều đó: khi tất toán,
+            //    CompleteWorkCommandHandler lấy toàn bộ số ký quỹ của đơn giao cho thợ bấm hoàn
+            //    thành TRƯỚC, còn thợ thứ hai bị chốt idempotent chặn lại và nhận 0đ.
+            //    Frontend hiện luôn gửi cùng một thợ, nhưng ai gọi thẳng API thì không bị chặn —
+            //    nên biến giả định ngầm đó thành ràng buộc được kiểm tra tại đây.
+            //    ⚠️ Muốn mở nhiều thợ trên một đơn: bỏ luật này SAU KHI đã chia ký quỹ theo tỷ
+            //    trọng TotalPrice của từng thợ và chốt idempotent theo cặp (bookingId, taskerId).
+            RuleFor(x => x.BookingItems)
+                .Must(items => items.Select(i => i.TaskerId).Distinct().Count() == 1)
+                .WithMessage("Tất cả hạng mục trong cùng một đơn phải do cùng một thợ đảm nhận.")
+                .When(x => x.BookingItems != null && x.BookingItems.Count > 0);
         }
     }
     public class BookingItemDtoValidator : AbstractValidator<BookingItemDto>
