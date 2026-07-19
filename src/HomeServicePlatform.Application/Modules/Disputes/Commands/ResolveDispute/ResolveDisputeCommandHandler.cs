@@ -9,7 +9,7 @@ using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
-using HomeServicePlatform.Domain.Modules.Payments.Entities;
+using HomeServicePlatform.Domain.Modules.Payments.Constants;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -73,49 +73,68 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                             booking.UpdatedAt = now;
                         }
 
-                        // 4b. 💸 HOÀN TIỀN — dùng CHUNG RefundExecutor với luồng khách/thợ hủy đơn.
+                        // 4b. 💸 BỒI THƯỜNG THEO PHÁN QUYẾT: sàn tự chi từ ví DOANH THU.
                         //
                         //     Trước đây khối này tự cộng thẳng `wallet.Balance += refundAmount` mà
                         //     KHÔNG có vế ghi nợ nào -> tiền sinh ra từ hư không, phá bất biến đối
-                        //     soát Σ(mọi ví) = tổng nạp − tổng rút. RefundExecutor giải phóng đúng
-                        //     khoản đang giữ ở ví ký quỹ (đơn đã tất toán thì ví doanh thu bù),
-                        //     chặn trần theo số THỰC THU, tạo bản ghi Refund và idempotent sẵn.
+                        //     soát Σ(mọi ví) = tổng nạp − tổng rút. Nay là bút toán HAI VẾ: ghi nợ
+                        //     ví doanh thu, ghi có ví người khiếu nại.
+                        //
+                        //     Khác với luồng hủy đơn (RefundExecutor giải phóng tiền đang giữ ở ví
+                        //     ký quỹ), đây là khoản sàn CHỦ ĐỘNG đền theo phán quyết của admin nên
+                        //     luôn lấy từ ví doanh thu, không phụ thuộc đơn đã thu được bao nhiêu.
                         decimal requestedRefund = request.RefundAmount ?? 0m;
                         decimal actualRefunded = 0m;
 
                         if (request.NewStatus == 1 && requestedRefund > 0m)
                         {
                             if (booking == null)
-                                throw new BadRequestException("Không tìm thấy đơn hàng của ca khiếu nại nên không thể hoàn tiền.");
-
-                            // Người khiếu nại là KHÁCH -> hoàn cho khách. Là THỢ -> ghi thành khoản
-                            // bồi thường cho thợ (RefundExecutor không khấu hoa hồng khoản này).
-                            var raisedByCustomer = dispute.RaisedById == booking.CustomerId;
-
-                            var outcome = await RefundExecutor.IssueRefundAsync(
-                                _context,
-                                booking,
-                                refundAmount: raisedByCustomer ? requestedRefund : 0m,
-                                penaltyAmount: raisedByCustomer ? 0m : requestedRefund,
-                                RefundInitiator.Admin,
-                                $"Hoàn theo phán quyết khiếu nại #{dispute.DisputeId}: {dispute.ResolutionNote}",
-                                now,
-                                ct);
-
-                            actualRefunded = outcome.RefundedToCustomer + outcome.CompensatedToTasker;
-
-                            // Không im lặng bỏ qua: nếu đơn chưa thu được đồng nào qua hệ thống
-                            // (vd đơn tiền mặt) hoặc đã hoàn trước đó thì không có tiền để chuyển.
-                            // Báo rõ để admin biết, thay vì ghi nhận một con số không có thật.
-                            if (!outcome.Executed || actualRefunded <= 0m)
                             {
                                 throw new BadRequestException(
-                                    "Không thể hoàn tiền cho đơn này: đơn chưa thu được khoản nào qua hệ thống, " +
-                                    "hoặc đã được hoàn trước đó. Đặt số tiền hoàn = 0 nếu muốn đóng ca khiếu nại mà không hoàn tiền.");
+                                    "Không tìm thấy đơn của ca khiếu nại nên không xác định được mức trần bồi thường.");
                             }
+
+                            // 🚧 TRẦN BỒI THƯỜNG = tổng giá trị đơn. Báo lỗi thay vì âm thầm cắt bớt,
+                            //    để admin biết chính xác con số vừa nhập là không hợp lệ.
+                            if (requestedRefund > booking.FinalAmount)
+                            {
+                                throw new BadRequestException(
+                                    $"Số tiền bồi thường ({requestedRefund:N0}đ) không được vượt quá giá trị đơn " +
+                                    $"BK{booking.BookingId} ({booking.FinalAmount:N0}đ).");
+                            }
+
+                            var wallets = await WalletLedger.ResolveAsync(
+                                _context,
+                                new[] { dispute.RaisedById, SystemAccounts.RevenueUserId },
+                                ct);
+
+                            // Vế ghi NỢ — sàn chi từ ví doanh thu. Thiếu số dư thì Debit ném lỗi,
+                            // tuyệt đối không để quỹ âm.
+                            WalletLedger.Debit(
+                                wallets[SystemAccounts.RevenueUserId],
+                                WalletTransactionType.EscrowOut,
+                                requestedRefund,
+                                dispute.BookingId,
+                                now,
+                                note: $"Bồi thường khiếu nại đơn BK{dispute.BookingId}",
+                                insufficientMessage: "Ví doanh thu của sàn không đủ số dư để chi khoản bồi thường này.");
+
+                            // Vế ghi CÓ — người khiếu nại. Khách thì là hoàn tiền; thợ thì là bồi
+                            // thường, nên ghi loại Adjustment để lịch sử ví đọc đúng bản chất.
+                            var raisedByCustomer = dispute.RaisedById == booking.CustomerId;
+
+                            WalletLedger.Credit(
+                                wallets[dispute.RaisedById],
+                                raisedByCustomer ? WalletTransactionType.Refund : WalletTransactionType.Adjustment,
+                                requestedRefund,
+                                dispute.BookingId,
+                                now,
+                                note: $"Bồi thường khiếu nại đơn BK{dispute.BookingId}");
+
+                            actualRefunded = requestedRefund;
                         }
 
-                        // Ghi nhận số tiền THỰC TẾ đã chuyển, không phải số admin đề nghị.
+                        // Ghi nhận số tiền THỰC TẾ đã chuyển (0 nếu đóng ca mà không bồi thường).
                         dispute.RefundAmount = actualRefunded;
 
                         // 5. Chốt gộp câu lệnh
