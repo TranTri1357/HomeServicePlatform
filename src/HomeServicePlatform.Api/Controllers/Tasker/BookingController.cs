@@ -4,8 +4,8 @@ using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Booking.Commands.AcceptBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking;
-using HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergencyBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork;
+using HomeServicePlatform.Application.Modules.Booking.Commands.DeclineEmergencyBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartMoving;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartWorking;
 using HomeServicePlatform.Application.Modules.Booking.Emergency;
@@ -149,23 +149,18 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return StatusCode(result.StatusCode, result);
         }
 
-        // 🚨 Thợ từ chối đơn khẩn cấp → hủy đơn và báo khách để chọn thợ khác.
+        // 🚨 Thợ BỎ QUA đơn khẩn cấp broadcast: chỉ đóng modal của riêng thợ này và ghi nhận để không
+        //    mời lại ở các vòng nới bán kính sau. KHÔNG hủy đơn — đơn vẫn treo cho thợ khác nhận, và
+        //    khách cũng không cần biết từng thợ lẻ từ chối (nên không bắn SignalR về phía khách nữa).
         [HttpPost("emergency/{id:long}/decline")]
-        [ProducesResponseType(typeof(ApiResponse<EmergencyCancelResult>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> DeclineEmergency([FromRoute] long id)
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> DeclineEmergency([FromRoute] long id, [FromQuery] bool timedOut = false)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
                 return Unauthorized();
 
-            var result = await _mediator.Send(new CancelEmergencyBookingCommand(id, taskerId));
-
-            if (result.Succeeded && result.Data != null)
-            {
-                await _hub.Clients.Group(BookingHub.UserGroup(result.Data.CustomerId))
-                    .SendAsync("ReceiveEmergencyDeclined", new { bookingId = id });
-            }
-
+            var result = await _mediator.Send(new DeclineEmergencyBookingCommand(id, taskerId, timedOut));
             return StatusCode(result.StatusCode, result);
         }
 
