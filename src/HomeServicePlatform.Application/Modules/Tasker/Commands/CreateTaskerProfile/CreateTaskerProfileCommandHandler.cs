@@ -1,4 +1,5 @@
 ﻿using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Tasker.Entities;
@@ -67,6 +68,14 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.CreateTaskerPr
             };
 
             _context.TaskerProfiles.Add(newProfile);
+
+            // 🗓️ Cấp lịch làm việc MẶC ĐỊNH (T2–T7, 8h–18h) ngay lúc tạo hồ sơ.
+            //    Hệ thống chặn đặt lịch ngoài giờ làm việc, nên hồ sơ không có dòng lịch nào
+            //    đồng nghĩa KHÔNG AI ĐẶT ĐƯỢC — thợ mới sẽ mãi không có đơn mà không hiểu vì sao.
+            //    Xem DefaultWorkingSchedule để biết đầy đủ lý do.
+            foreach (var schedule in DefaultWorkingSchedule.For(newProfile.TaskerProfileId))
+                _context.TaskerSchedules.Add(schedule);
+
             await _context.SaveChangesAsync(ct);
 
             return ApiResponse<bool>.Success(true, "Tạo hồ sơ thành công. Vui lòng chờ hệ thống xác minh.");

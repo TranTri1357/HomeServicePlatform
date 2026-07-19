@@ -5,6 +5,7 @@ using HomeServicePlatform.Application;
 using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Infrastructure;
 using HomeServicePlatform.Infrastructure.Persistence;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Api
@@ -29,7 +30,28 @@ namespace HomeServicePlatform.Api
             builder.Services.Configure<BufferPolicyOptions>(
                 builder.Configuration.GetSection(BufferPolicyOptions.SectionName));
 
+            // Công tắc nghiệp vụ luồng đặt lịch (vd ép giờ làm việc) — section "BookingPolicy".
+            builder.Services.Configure<BookingPolicyOptions>(
+                builder.Configuration.GetSection(BookingPolicyOptions.SectionName));
+
             var app = builder.Build();
+
+            // 🌐 PHẢI ĐỨNG ĐẦU PIPELINE: khôi phục IP thật của client từ header X-Forwarded-For.
+            //
+            // Trên Render (và mọi PaaS khác) ứng dụng nằm SAU reverse proxy, nên
+            // HttpContext.Connection.RemoteIpAddress là IP của proxy — GIỐNG NHAU cho mọi người
+            // dùng. Rate limiter phân vùng theo IP đó ⇒ hạn mức 10 request/phút bị áp cho TOÀN BỘ
+            // người dùng cộng lại, chỉ vài người thao tác cùng lúc là cả hệ thống nhận 429.
+            //
+            // KnownNetworks/KnownProxies phải xoá vì dải IP proxy của Render không cố định;
+            // không xoá thì ASP.NET bỏ qua header và mọi thứ trở lại như cũ.
+            var forwardedHeaderOptions = new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            };
+            forwardedHeaderOptions.KnownNetworks.Clear();
+            forwardedHeaderOptions.KnownProxies.Clear();
+            app.UseForwardedHeaders(forwardedHeaderOptions);
 
             // KÍCH HOẠT CÁI LƯỚI BẮT LỖI TOÀN HỆ THỐNG
             app.UseMiddleware<GlobalExceptionMiddleware>();

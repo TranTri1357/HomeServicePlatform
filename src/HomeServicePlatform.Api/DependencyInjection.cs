@@ -178,8 +178,9 @@ namespace HomeServicePlatform.Api
 
             // 🚦 Rate limiting: chống brute-force / spam ở các endpoint xác thực.
             //    Policy "auth" = 10 request/phút, phân vùng theo IP client.
-            //    Lưu ý: sau reverse proxy (Render), RemoteIpAddress có thể là IP proxy →
-            //    cân nhắc cấu hình ForwardedHeaders nếu muốn giới hạn chính xác theo IP thật.
+            //    IP thật lấy được nhờ UseForwardedHeaders() đã bật ở đầu pipeline trong Program.cs
+            //    (sau reverse proxy như Render, nếu không có nó thì mọi người dùng chung một IP
+            //    proxy và hạn mức này bị áp cho toàn bộ người dùng cộng lại).
             services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

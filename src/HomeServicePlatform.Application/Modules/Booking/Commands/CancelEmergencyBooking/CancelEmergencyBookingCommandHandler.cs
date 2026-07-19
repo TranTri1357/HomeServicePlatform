@@ -98,8 +98,15 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergen
                 .FirstOrDefaultAsync(ct);
             if (point == null) return Array.Empty<long>();
 
+            // Thợ đã bấm từ chối thì modal của họ đã đóng — không cần báo nữa.
+            var declinedTaskerIds = await _context.EmergencyBookingDeclines
+                .AsNoTracking()
+                .Where(d => d.BookingId == booking.BookingId && !d.WasTimeout)
+                .Select(d => d.TaskerId)
+                .ToListAsync(ct);
+
             var taskers = await EmergencyTaskerFinder.FindEligibleAsync(
-                _context, serviceId, point.Lat, point.Lng, MaxBroadcastRadiusKm, ct);
+                _context, serviceId, point.Lat, point.Lng, MaxBroadcastRadiusKm, ct, declinedTaskerIds);
 
             return taskers.Select(t => t.TaskerId).ToList();
         }

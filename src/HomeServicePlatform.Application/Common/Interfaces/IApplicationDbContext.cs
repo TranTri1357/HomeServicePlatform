@@ -32,6 +32,7 @@ namespace HomeServicePlatform.Application.Common.Interfaces
         DbSet<Booking> Bookings { get; set; }
         DbSet<BookingAddress> BookingAddresses { get; set; }
         DbSet<BookingItem> BookingItems { get; set; }
+        DbSet<EmergencyBookingDecline> EmergencyBookingDeclines { get; set; }
         DbSet<Payment> Payments { get; set; }
         DbSet<Refund> Refunds { get; set; }
         DbSet<Wallet> Wallets { get; set; }

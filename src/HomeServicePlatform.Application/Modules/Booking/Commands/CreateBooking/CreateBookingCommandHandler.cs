@@ -26,15 +26,18 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
         private readonly IUnitOfWork _unitOfWork; // 🟢 Tích hợp UnitOfWork quản lý Transaction gộp
         private readonly IApplicationDbContext _context;
         private readonly BufferPolicyOptions _buffer;
+        private readonly BookingPolicyOptions _bookingPolicy;
         private readonly GeometryFactory _geometryFactory;
 
         public CreateBookingCommandHandler(IBookingRepository bookingRepository, IUnitOfWork unitOfWork,
-            IApplicationDbContext context, IOptions<BufferPolicyOptions> buffer)
+            IApplicationDbContext context, IOptions<BufferPolicyOptions> buffer,
+            IOptions<BookingPolicyOptions> bookingPolicy)
         {
             _bookingRepository = bookingRepository;
             _unitOfWork = unitOfWork;
             _context = context;
             _buffer = buffer.Value;
+            _bookingPolicy = bookingPolicy.Value;
             _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // Chuẩn WGS84 cho PostGIS
         }
 
@@ -177,8 +180,18 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
                     await _context.AcquireTaskerScheduleLockAsync(tid, cancellationToken);
 
                 foreach (var item in booking.BookingItems.Where(i => i.TaskerId.HasValue))
+                {
+                    // 🗓️ Giờ hẹn phải nằm trong lịch làm việc của thợ và không rơi vào ngày nghỉ.
+                    //    Trước đây quy tắc này CHỈ có ở giao diện — gọi thẳng API là đặt được thợ
+                    //    lúc 3h sáng. Tắt được qua BookingPolicy__EnforceWorkingHours=false nếu
+                    //    dữ liệu lịch có sự cố lúc demo (xem BookingPolicyOptions).
+                    if (_bookingPolicy.EnforceWorkingHours)
+                        await WorkingHoursGuard.EnsureWithinWorkingHoursAsync(
+                            _context, item.TaskerId!.Value, item.StartAt, item.EndAt, cancellationToken);
+
                     await TravelBufferGuard.EnsureTravelFeasibleAsync(
                         _context, _buffer, item.TaskerId!.Value, item.StartAt, item.EndAt, destLat, destLng, cancellationToken);
+                }
 
                 await _bookingRepository.SaveAggregateAsync(booking);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);

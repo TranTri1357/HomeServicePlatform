@@ -39,6 +39,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<BookingAddress> BookingAddresses { get; set; }
         public DbSet<BookingItem> BookingItems { get; set; }
+        public DbSet<EmergencyBookingDecline> EmergencyBookingDeclines { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Refund> Refunds { get; set; }
         public DbSet<Wallet> Wallets { get; set; }

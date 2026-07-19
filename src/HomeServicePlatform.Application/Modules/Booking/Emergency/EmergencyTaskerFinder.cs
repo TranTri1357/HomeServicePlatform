@@ -22,18 +22,27 @@ namespace HomeServicePlatform.Application.Modules.Booking.Emergency
     {
         public const double DegreesPerKm = 111.12;
 
+        /// <param name="excludeTaskerIds">
+        /// Thợ cần loại khỏi kết quả — dùng khi nới bán kính (5km → 10km → 15km): tập thợ vòng sau là
+        /// TẬP CHA của vòng trước, nên nếu không loại thì thợ đã bấm "Từ chối" sẽ bị dựng dậy lại cho
+        /// cùng một đơn. Truyền null ở vòng đầu.
+        /// </param>
         public static async Task<List<EmergencyTaskerOffer>> FindEligibleAsync(
             IApplicationDbContext context,
             long serviceId,
             double lat,
             double lng,
             double radiusKm,
-            CancellationToken ct)
+            CancellationToken ct,
+            IReadOnlyCollection<long>? excludeTaskerIds = null)
         {
             var geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // WGS84 (PostGIS)
             var customerPoint = geometryFactory.CreatePoint(new Coordinate(lng, lat));
             var radiusInDegrees = radiusKm / DegreesPerKm;
             var now = DateTimeOffset.UtcNow;
+            // Materialize sang mảng để EF dịch thành SQL `NOT IN (...)` thay vì giữ tham chiếu
+            // tới một collection có thể bị thay đổi trong lúc dựng câu truy vấn.
+            var excluded = excludeTaskerIds?.ToArray() ?? Array.Empty<long>();
 
             var offers = await context.TaskerProfiles
                 .AsNoTracking()
@@ -41,6 +50,7 @@ namespace HomeServicePlatform.Application.Modules.Booking.Emergency
                     !t.IsDeleted &&
                     t.CurrentGeom != null &&
                     t.Status == 1 && // chỉ thợ đang RẢNH mới nhận đơn khẩn cấp
+                    !excluded.Contains(t.TaskerProfileId) &&
                     t.TaskerServices.Any(ts => ts.ServiceId == serviceId) &&
                     t.CurrentGeom.Distance(customerPoint) <= radiusInDegrees)
                 .Select(t => new EmergencyTaskerOffer(

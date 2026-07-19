@@ -12,7 +12,9 @@ namespace HomeServicePlatform.Infrastructure.ThirdPartyServices.Payments.Strateg
     {
         public PaymentMethod Method => PaymentMethod.Cash;
 
-        public async Task<PaymentStrategyResult> ProcessPaymentAsync(long bookingId, decimal amount, CancellationToken ct)
+        // Không có thao tác bất đồng bộ nào (tiền mặt không gọi cổng ngoài) nên trả Task
+        // hoàn thành sẵn thay vì đánh dấu async — tránh chi phí máy trạng thái thừa.
+        public Task<PaymentStrategyResult> ProcessPaymentAsync(long bookingId, decimal amount, CancellationToken ct)
         {
             // Nghiệp vụ tiền mặt (Thợ làm xong mới thu tiền mặt):
             // Giao dịch khởi tạo sẽ ở trạng thái Chờ thanh toán (IsInstantSuccess = false)
@@ -21,11 +23,11 @@ namespace HomeServicePlatform.Infrastructure.ThirdPartyServices.Payments.Strateg
             // Sinh mã giao dịch tiền mặt nội bộ để quản lý đối soát
             string cashTransactionCode = $"CASH{DateTime.UtcNow:yyyyMMddHHmmss}{bookingId}";
 
-            return new PaymentStrategyResult(
+            return Task.FromResult(new PaymentStrategyResult(
                 IsInstantSuccess: false, // 🟢 Bằng false vì tiền mặt chưa được thu ngay lúc đặt lịch
                 PaymentUrl: null,        // Tiền mặt không cần link chuyển hướng cổng thanh toán
                 TransactionCode: cashTransactionCode
-            );
+            ));
         }
     }
 }

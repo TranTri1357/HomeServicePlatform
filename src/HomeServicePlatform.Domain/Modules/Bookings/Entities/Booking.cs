@@ -35,6 +35,7 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public virtual ICollection<BookingHistory> BookingHistories { get; set; } = new List<BookingHistory>();
         public virtual ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
+        public virtual ICollection<EmergencyBookingDecline> EmergencyDeclines { get; set; } = new List<EmergencyBookingDecline>();
 
         /// <summary>
         /// Bước 1: Khách hàng tạo mới đơn hàng

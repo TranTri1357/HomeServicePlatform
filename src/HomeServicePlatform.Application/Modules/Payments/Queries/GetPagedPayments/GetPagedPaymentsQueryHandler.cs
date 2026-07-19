@@ -34,7 +34,10 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetPagedPayme
             if (!string.IsNullOrWhiteSpace(request.TransactionCode))
             {
                 string code = request.TransactionCode.Trim();
-                query = query.Where(x => x.TransactionCode.Contains(code));
+                // TransactionCode nullable: đơn tiền mặt/đơn chưa qua cổng chưa có mã.
+                // Thiếu vế kiểm null thì lọc theo mã sẽ ném NullReferenceException -> trang
+                // quản lý thanh toán trả 500 ngay khi admin gõ vào ô tìm kiếm.
+                query = query.Where(x => x.TransactionCode != null && x.TransactionCode.Contains(code));
             }
 
             // 2. Tính tổng số lượng dòng
