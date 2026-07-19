@@ -20,7 +20,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
     /// </summary>
     public static class TravelBufferGuard
     {
-        private static readonly TimeSpan HoldTtl = TimeSpan.FromMinutes(15);
 
         private sealed class NeighborProj
         {
@@ -42,15 +41,13 @@ namespace HomeServicePlatform.Application.Common.Helpers
             double? destLng,
             CancellationToken ct)
         {
-            var freshHoldSince = DateTimeOffset.UtcNow - HoldTtl;
+            var freshHoldSince = BookingSlotOccupancy.FreshHoldSince(DateTimeOffset.UtcNow);
 
-            // Đơn liền TRƯỚC: đơn đang hiệu lực (đã nhận/đang làm 1..3 hoặc đơn giữ chỗ 0 còn hạn)
-            // kết thúc muộn nhất mà vẫn không muộn hơn giờ bắt đầu đơn mới.
+            // Đơn liền TRƯỚC: đơn đang chiếm khung giờ (xem BookingSlotOccupancy) kết thúc muộn
+            // nhất mà vẫn không muộn hơn giờ bắt đầu đơn mới.
             var prev = await context.BookingItems.AsNoTracking()
-                .Where(b => b.TaskerId == taskerId
-                            && b.EndAt <= startAt
-                            && ((b.Status >= 1 && b.Status <= 3)
-                                || (b.Status == 0 && b.CreatedAt > freshHoldSince)))
+                .Where(b => b.TaskerId == taskerId && b.EndAt <= startAt)
+                .Where(BookingSlotOccupancy.Occupying(freshHoldSince))
                 .OrderByDescending(b => b.EndAt)
                 .Select(b => new NeighborProj
                 {
@@ -69,12 +66,10 @@ namespace HomeServicePlatform.Application.Common.Helpers
                         $"Vui lòng chọn khung giờ bắt đầu từ {ToVn(prev.At.AddMinutes(buffer)):HH:mm} trở đi.");
             }
 
-            // Đơn liền SAU: đơn đang hiệu lực bắt đầu sớm nhất mà không sớm hơn giờ kết thúc đơn mới.
+            // Đơn liền SAU: đơn đang chiếm khung giờ bắt đầu sớm nhất mà không sớm hơn giờ kết thúc đơn mới.
             var next = await context.BookingItems.AsNoTracking()
-                .Where(b => b.TaskerId == taskerId
-                            && b.StartAt >= endAt
-                            && ((b.Status >= 1 && b.Status <= 3)
-                                || (b.Status == 0 && b.CreatedAt > freshHoldSince)))
+                .Where(b => b.TaskerId == taskerId && b.StartAt >= endAt)
+                .Where(BookingSlotOccupancy.Occupying(freshHoldSince))
                 .OrderBy(b => b.StartAt)
                 .Select(b => new NeighborProj
                 {

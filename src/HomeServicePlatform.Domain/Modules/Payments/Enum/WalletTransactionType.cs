@@ -12,7 +12,8 @@ namespace HomeServicePlatform.Domain.Modules.Payments.Enum
 
         // --- Bút toán của hai ví hệ thống (ghi sổ kép) ---
         EscrowIn = 7,   // Ví ký quỹ nhận tiền giữ hộ cho một đơn (ghi có)
-        EscrowOut = 8,  // Ví ký quỹ giải ngân/hoàn trả cho một đơn (ghi nợ)
+        EscrowOut = 8,  // Ví hệ thống chi tiền ra cho một đơn (ghi nợ): ký quỹ giải ngân/hoàn trả,
+                        // hoặc ví doanh thu bù hoàn tiền / chi bồi thường theo phán quyết khiếu nại
         Commission = 9  // Ví doanh thu nhận hoa hồng hoặc phí hủy (ghi có)
     }
 }

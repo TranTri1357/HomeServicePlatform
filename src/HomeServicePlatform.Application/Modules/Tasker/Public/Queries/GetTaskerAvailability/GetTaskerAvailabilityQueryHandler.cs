@@ -17,7 +17,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
         : IRequestHandler<GetTaskerAvailabilityQuery, ApiResponse<TaskerAvailabilityDto>>
     {
         private static readonly TimeSpan VnOffset = TimeSpan.FromHours(7);
-        private static readonly TimeSpan HoldTtl = TimeSpan.FromMinutes(15);
 
         private readonly IApplicationDbContext _context;
         private readonly BufferPolicyOptions _buffer;
@@ -45,20 +44,20 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
             var startOfDayUtc = startOfDay.ToUniversalTime();
             var endOfDayUtc = startOfDay.AddDays(1).ToUniversalTime();
             var now = DateTimeOffset.UtcNow;
-            var freshHoldSince = now - HoldTtl;
+            var freshHoldSince = BookingSlotOccupancy.FreshHoldSince(now);
 
             var timeOffs = await _context.TaskerTimeOffs.AsNoTracking()
                 .Where(t => t.TaskerId == request.TaskerId && t.StartAt < endOfDayUtc && t.EndAt > startOfDayUtc)
                 .Select(t => new { t.StartAt, t.EndAt })
                 .ToListAsync(ct);
 
-            // Đơn "chiếm chỗ": đã nhận/đang làm (1,2,3) HOẶC đơn giữ chỗ (0) còn trong hạn TTL.
+            // Đơn "chiếm chỗ": điều kiện dùng chung ở BookingSlotOccupancy để luôn khớp với ràng
+            // buộc chống đè lịch của CSDL (đơn đã Hoàn thành/Hoàn tiền vẫn chiếm khung giờ).
             // Lấy kèm TỌA ĐỘ địa điểm của từng đơn (qua BookingAddress.Geom) để tính buffer di chuyển.
             var busy = await _context.BookingItems.AsNoTracking()
                 .Where(b => b.TaskerId == request.TaskerId
-                            && b.StartAt < endOfDayUtc && b.EndAt > startOfDayUtc
-                            && ((b.Status >= 1 && b.Status <= 3)
-                                || (b.Status == 0 && b.CreatedAt > freshHoldSince)))
+                            && b.StartAt < endOfDayUtc && b.EndAt > startOfDayUtc)
+                .Where(BookingSlotOccupancy.Occupying(freshHoldSince))
                 .Select(b => new
                 {
                     b.StartAt,

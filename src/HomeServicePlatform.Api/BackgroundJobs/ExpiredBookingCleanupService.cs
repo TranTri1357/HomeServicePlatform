@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
@@ -22,7 +23,6 @@ namespace HomeServicePlatform.Api.BackgroundJobs
     public class ExpiredBookingCleanupService : BackgroundService
     {
         private static readonly TimeSpan Interval = TimeSpan.FromMinutes(2);
-        private static readonly TimeSpan HoldTtl = TimeSpan.FromMinutes(15);
 
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<ExpiredBookingCleanupService> _logger;
@@ -71,7 +71,9 @@ namespace HomeServicePlatform.Api.BackgroundJobs
             var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             var nowUtc = DateTimeOffset.UtcNow;
-            var expiredThreshold = nowUtc - HoldTtl;
+            // Dùng chung mốc TTL với BookingSlotOccupancy: nếu hai nơi lệch nhau thì sẽ có đơn
+            // vừa bị coi là hết hạn giữ chỗ, vừa vẫn bị tính là đang chiếm khung giờ (hoặc ngược lại).
+            var expiredThreshold = BookingSlotOccupancy.FreshHoldSince(nowUtc);
 
             // "Đã chốt" = có thanh toán thành công (Paid) HOẶC đơn tiền mặt (Pending + Cash).
             // Chỉ nhả những đơn thường Pending quá hạn mà CHƯA chốt.
