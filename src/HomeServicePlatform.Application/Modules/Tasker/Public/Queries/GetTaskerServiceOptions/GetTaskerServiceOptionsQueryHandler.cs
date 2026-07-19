@@ -17,19 +17,30 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
 
         public async Task<ApiResponse<List<TaskerServiceOptionDto>>> Handle(GetTaskerServiceOptionsQuery request, CancellationToken ct)
         {
+            var now = DateTimeOffset.UtcNow;
+
             var query = from ts in _context.TaskerServices
                         where ts.TaskerId == request.TaskerId
                         join s in _context.Services on ts.ServiceId equals s.ServiceId
                         where s.IsActive && !s.IsDeleted
                         join c in _context.Categories on s.CategoryId equals c.CategoryId
-                        join p in _context.TaskerServicePrices
-                            on new { ts.TaskerId, ts.ServiceId } equals new { p.TaskerId, p.ServiceId } into priceGroup
-                        from price in priceGroup.Where(x => x.EffectiveTo == null).DefaultIfEmpty()
                         select new TaskerServiceOptionDto(
                             s.ServiceId,
                             s.Name,
                             c.Name,
-                            price != null ? price.Price : 0m,
+                            // 💰 Giá đang hiệu lực — đồng bộ với TaskerPriceQuery.IsActiveAt.
+                            //    ⚠️ Cố tình dùng TRUY VẤN CON thay vì group join + DefaultIfEmpty:
+                            //    EF Core 8 KHÔNG dịch nổi `groupJoin.Where(...).OrderByDescending(...)
+                            //    .DefaultIfEmpty()` khi khoá join là anonymous type ghép 2 cột — nó ném
+                            //    "The LINQ expression could not be translated" ngay lúc chạy. Dạng truy
+                            //    vấn con dưới đây dịch ra scalar subquery bình thường và giữ được thứ tự.
+                            _context.TaskerServicePrices
+                                .Where(p => p.TaskerId == ts.TaskerId && p.ServiceId == ts.ServiceId
+                                            && p.EffectiveFrom <= now
+                                            && (p.EffectiveTo == null || p.EffectiveTo > now))
+                                .OrderByDescending(p => p.EffectiveFrom)
+                                .Select(p => p.Price)
+                                .FirstOrDefault(),
                             s.DurationMinutes);
 
             var items = await query.ToListAsync(ct);

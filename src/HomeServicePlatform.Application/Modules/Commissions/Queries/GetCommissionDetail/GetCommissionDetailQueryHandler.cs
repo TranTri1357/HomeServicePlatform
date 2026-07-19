@@ -36,7 +36,8 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Queries.GetCommiss
                                   c.CommissionRate,
                                   c.EffectiveFrom,
                                   c.EffectiveTo,
-                                  c.EffectiveTo == null || c.EffectiveTo > now
+                                  // 🏦 Đồng bộ với CommissionQuery.IsActiveAt (giới hạn EF trong Select).
+                                  c.EffectiveFrom <= now && (c.EffectiveTo == null || c.EffectiveTo > now)
                               )).FirstOrDefaultAsync(ct);
 
             if (data == null) throw new NotFoundException($"Không tìm thấy biểu phí hoa hồng số #{request.CommissionId}");

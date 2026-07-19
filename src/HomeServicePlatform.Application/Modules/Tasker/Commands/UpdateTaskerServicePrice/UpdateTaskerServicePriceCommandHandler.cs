@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using MediatR;
@@ -21,11 +22,13 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.UpdateTaskerSe
 
         public async Task<ApiResponse<bool>> Handle(UpdateTaskerServicePriceCommand request, CancellationToken cancellationToken)
         {
-            // Tìm bản ghi giá đang kích hoạt của thợ cho dịch vụ cụ thể này
+            // Tìm bản ghi giá đang kích hoạt của thợ cho dịch vụ cụ thể này.
+            // 💰 Dùng chung định nghĩa "đang hiệu lực" ở TaskerPriceQuery để đường GHI và
+            //    đường ĐỌC (tính tiền đơn) không bao giờ hiểu khác nhau về dòng giá hiện hành.
             var currentPrice = await _context.TaskerServicePrices
-                .FirstOrDefaultAsync(p => p.TaskerId == request.TaskerId
-                                       && p.ServiceId == request.ServiceId
-                                       && p.EffectiveTo == null, cancellationToken);
+                .Where(p => p.TaskerId == request.TaskerId && p.ServiceId == request.ServiceId)
+                .ActiveAt(DateTimeOffset.UtcNow)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (currentPrice == null)
                 throw new NotFoundException("Không tìm thấy cấu hình bảng giá đang hoạt động của thợ này.");

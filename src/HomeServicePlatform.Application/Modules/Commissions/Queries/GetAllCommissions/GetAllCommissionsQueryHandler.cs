@@ -44,7 +44,10 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Queries.GetAllComm
                     c.CommissionRate,
                     c.EffectiveFrom,
                     c.EffectiveTo,
-                    c.EffectiveTo == null || c.EffectiveTo > now))
+                    // 🏦 Đồng bộ với CommissionQuery.IsActiveAt (viết thẳng: giới hạn EF trong Select).
+                    //    Thiếu vế EffectiveFrom thì biểu phí HẸN TRƯỚC cho tương lai vẫn hiện
+                    //    "Đang áp dụng" — admin tưởng đang thu %, thực tế đang thu 0%.
+                    c.EffectiveFrom <= now && (c.EffectiveTo == null || c.EffectiveTo > now)))
                 .ToListAsync(ct);
 
             var result = new PagedResult<CommissionDto>

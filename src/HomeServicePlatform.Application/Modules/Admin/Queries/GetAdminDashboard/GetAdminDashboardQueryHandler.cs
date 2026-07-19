@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
+using HomeServicePlatform.Domain.Modules.Payments.Constants;
+using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,6 +53,25 @@ namespace HomeServicePlatform.Application.Modules.Admin.Queries.GetAdminDashboar
             var totalRevenue = await _context.Bookings
                 .Where(b => b.Status == BookingStatus.Completed)
                 .SumAsync(b => (decimal?)b.FinalAmount, ct) ?? 0m;
+
+            // 💰 DOANH THU THẬT CỦA SÀN — khác hẳn hai con số GMV ở trên.
+            //    `totalRevenue` phía trên là SUM(Booking.FinalAmount), tức tổng tiền khách trả
+            //    (GMV); phần lớn khoản đó thuộc về thợ, sàn chỉ hưởng hoa hồng. Đề bài yêu cầu
+            //    báo cáo CẢ HAI ("tổng giao dịch, doanh thu") nên bổ sung chỉ số này.
+            //    Nguồn: ví doanh thu hệ thống — hoa hồng chốt ở CompleteWork và phí hủy ở
+            //    RefundExecutor đều đã ghi bút toán Commission vào đây, nên số liệu luôn khớp
+            //    số dư thật thay vì tính lại từ biểu phí (tránh đúng cái bẫy D1 ở dashboard thợ).
+            var platformRevenueQuery = _context.WalletTransactions
+                .AsNoTracking()
+                .Where(t => t.Wallet.UserId == SystemAccounts.RevenueUserId
+                            && t.Type == (short)WalletTransactionType.Commission);
+
+            var totalPlatformRevenue = await platformRevenueQuery
+                .SumAsync(t => (decimal?)t.Amount, ct) ?? 0m;
+
+            var todayPlatformRevenue = await platformRevenueQuery
+                .Where(t => t.CreatedAt >= todayStartUtc && t.CreatedAt < todayEndUtc)
+                .SumAsync(t => (decimal?)t.Amount, ct) ?? 0m;
 
             var openDisputes = await _context.Disputes.CountAsync(d => d.Status == 0, ct);
 
@@ -103,6 +124,8 @@ namespace HomeServicePlatform.Application.Modules.Admin.Queries.GetAdminDashboar
                 pendingTaskers,
                 totalBookings,
                 totalRevenue,
+                todayPlatformRevenue,
+                totalPlatformRevenue,
                 openDisputes,
                 weeklyRevenue,
                 bookingsByStatus,

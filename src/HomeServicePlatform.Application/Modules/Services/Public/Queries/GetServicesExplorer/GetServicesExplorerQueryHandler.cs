@@ -27,6 +27,9 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                 .AsNoTracking()
                 .Where(s => s.IsActive && !s.IsDeleted);
 
+            // Chốt một mốc thời gian cho cả truy vấn (xem ghi chú ở GetPopularServices).
+            var now = DateTimeOffset.UtcNow;
+
             if (request.CategoryId.HasValue)
                 query = query.Where(s => s.CategoryId == request.CategoryId);
 
@@ -45,8 +48,9 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                 Description = s.Description,
                 DurationMinutes = s.DurationMinutes,
                 TotalBookings = s.BookingItems.Count(),
+                // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: giới hạn EF trong Select).
                 StartingPrice = s.TaskerServicePrices
-                    .Where(p => p.EffectiveTo == null || p.EffectiveTo > DateTimeOffset.UtcNow)
+                    .Where(p => p.EffectiveFrom <= now && (p.EffectiveTo == null || p.EffectiveTo > now))
                     .Min(p => (decimal?)p.Price) ?? 0,
                 // Phương án (a): TB rating của các thợ cung cấp dịch vụ này, chỉ tính thợ
                 // ĐÃ có đánh giá (TotalReviews > 0) để RatingAvg=0 (chưa có) không kéo điểm.

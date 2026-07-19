@@ -172,8 +172,14 @@ namespace HomeServicePlatform.Api.Controllers.Customer
 
             if (result.Succeeded && result.Data != null)
             {
-                await _hub.Clients.Group(BookingHub.UserGroup(result.Data.TaskerId))
-                    .SendAsync("ReceiveEmergencyCancelled", new { bookingId = id });
+                // Đơn khẩn là BROADCAST nên TaskerId = 0 (chưa gán ai). Trước đây chỗ này gửi tới
+                // UserGroup(0) — không ai nhận, khiến modal bên thợ vẫn kêu chuông hết 30s dù khách
+                // đã hủy. Giờ bắn tới đúng danh sách thợ đã được broadcast.
+                foreach (var taskerId in result.Data.NotifyTaskerIds)
+                {
+                    await _hub.Clients.Group(BookingHub.UserGroup(taskerId))
+                        .SendAsync("ReceiveEmergencyCancelled", new { bookingId = id });
+                }
             }
 
             return StatusCode(result.StatusCode, result);

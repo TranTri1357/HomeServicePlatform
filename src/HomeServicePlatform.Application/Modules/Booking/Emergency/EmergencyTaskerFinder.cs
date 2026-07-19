@@ -46,8 +46,13 @@ namespace HomeServicePlatform.Application.Modules.Booking.Emergency
                 .Select(t => new EmergencyTaskerOffer(
                     t.TaskerProfileId,
                     t.User.FullName,
+                    // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt — viết thẳng vì EF Core 8
+                    //    không dịch được method tự viết bên trong lambda của Select.
                     t.TaskerServicePrices
-                        .Where(p => p.ServiceId == serviceId && (p.EffectiveTo == null || p.EffectiveTo > now))
+                        .Where(p => p.ServiceId == serviceId
+                                    && p.EffectiveFrom <= now
+                                    && (p.EffectiveTo == null || p.EffectiveTo > now))
+                        .OrderByDescending(p => p.EffectiveFrom)
                         .Select(p => p.Price)
                         .FirstOrDefault(),
                     Math.Round(t.CurrentGeom!.Distance(customerPoint) * DegreesPerKm, 1)))

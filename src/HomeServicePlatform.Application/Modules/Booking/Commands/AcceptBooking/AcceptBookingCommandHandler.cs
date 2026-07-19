@@ -97,9 +97,12 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.AcceptBooking
 
                 // Chốt giá theo giá dịch vụ của chính thợ nhận.
                 var serviceId = booking.BookingItems.Select(i => i.ServiceId).First();
+                // 💰 Giá lấy qua TaskerPriceQuery — CÙNG định nghĩa "đang hiệu lực" với CreateBooking.
+                //    Trước đây chỗ này thiếu điều kiện EffectiveFrom và thiếu sắp xếp, tức là hai
+                //    đường tính tiền của hệ thống có thể ra hai kết quả khác nhau.
                 var price = await _context.TaskerServicePrices.AsNoTracking()
-                    .Where(p => p.TaskerId == request.TaskerId && p.ServiceId == serviceId
-                                && (p.EffectiveTo == null || p.EffectiveTo > nowUtc))
+                    .Where(p => p.TaskerId == request.TaskerId && p.ServiceId == serviceId)
+                    .ActiveAt(nowUtc)
                     .Select(p => p.Price)
                     .FirstOrDefaultAsync(ct);
                 if (price <= 0)
