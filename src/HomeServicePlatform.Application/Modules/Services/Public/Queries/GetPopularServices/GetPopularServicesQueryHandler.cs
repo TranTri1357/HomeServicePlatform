@@ -22,6 +22,10 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetPop
 
         public async Task<ApiResponse<List<PopularServiceDto>>> Handle(GetPopularServicesQuery request, CancellationToken cancellationToken)
         {
+            // Chốt một mốc thời gian cho cả truy vấn: nếu để DateTimeOffset.UtcNow nằm trong
+            // biểu thức thì mỗi lần lượng giá lại ra một mốc khác nhau.
+            var now = DateTimeOffset.UtcNow;
+
             var popularServices = await _context.Services
                 .AsNoTracking()
                 .Where(s => s.IsActive && !s.IsDeleted)
@@ -32,10 +36,10 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetPop
 
                     TotalBookings = s.BookingItems.Count(),
 
-                    // Tìm giá khởi điểm (MIN Price)
-                    // Chỉ lấy những mức giá đang có hiệu lực (EffectiveTo là null hoặc lớn hơn hiện tại)
+                    // Tìm giá khởi điểm (MIN Price) trong các mức giá ĐANG hiệu lực.
+                    // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: giới hạn EF trong Select).
                     StartingPrice = s.TaskerServicePrices
-                        .Where(p => p.EffectiveTo == null || p.EffectiveTo > DateTimeOffset.UtcNow)
+                        .Where(p => p.EffectiveFrom <= now && (p.EffectiveTo == null || p.EffectiveTo > now))
                         .Min(p => (decimal?)p.Price) ?? 0,
 
                     ImageUrl = s.ImageUrl

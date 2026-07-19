@@ -64,10 +64,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateBooking
             var taskerIds = request.BookingItems.Select(i => i.TaskerId!.Value).Distinct().ToList();
             var serviceIds = request.BookingItems.Select(i => i.ServiceId).Distinct().ToList();
             var priceRows = await _context.TaskerServicePrices
-                .Where(p => taskerIds.Contains(p.TaskerId)
-                            && serviceIds.Contains(p.ServiceId)
-                            && p.EffectiveFrom <= nowUtc
-                            && (p.EffectiveTo == null || p.EffectiveTo > nowUtc))
+                .Where(p => taskerIds.Contains(p.TaskerId) && serviceIds.Contains(p.ServiceId))
+                .ActiveAt(nowUtc) // 💰 định nghĩa "đang hiệu lực" nằm ở TaskerPriceQuery
                 .ToListAsync(cancellationToken);
 
             // 2. Khởi tạo đối tượng Root: Booking (Chưa gán tổng tiền)

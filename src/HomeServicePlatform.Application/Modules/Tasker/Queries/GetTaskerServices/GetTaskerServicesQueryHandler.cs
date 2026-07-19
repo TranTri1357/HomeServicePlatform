@@ -21,6 +21,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerServic
 
         public async Task<ApiResponse<List<TaskerServiceDto>>> Handle(GetTaskerServicesQuery request, CancellationToken cancellationToken)
         {
+            var now = DateTimeOffset.UtcNow;
+
             // Kết nối các bảng: tasker_services -> services -> categories
             var query = from ts in _context.TaskerServices
                         where ts.TaskerId == request.TaskerProfileId
@@ -31,7 +33,12 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerServic
                         // 🟢 Join thêm bảng giá để lấy cột Price
                         join p in _context.TaskerServicePrices on
                             new { ts.TaskerId, ts.ServiceId } equals new { p.TaskerId, p.ServiceId } into priceGroup
-                        from subPrice in priceGroup.Where(x => x.EffectiveTo == null).DefaultIfEmpty() // Lấy giá hiện tại
+                        // 💰 Lấy giá hiện tại — đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng:
+                        //    đây là group join, không phải IQueryable gốc nên không gọi được ActiveAt).
+                        from subPrice in priceGroup
+                            .Where(x => x.EffectiveFrom <= now && (x.EffectiveTo == null || x.EffectiveTo > now))
+                            .OrderByDescending(x => x.EffectiveFrom)
+                            .DefaultIfEmpty()
 
                         select new TaskerServiceDto(
                             ts.TaskerId, // Thay cho TaskerServiceId nếu bảng này là bảng trung gian không có Id tăng tự động

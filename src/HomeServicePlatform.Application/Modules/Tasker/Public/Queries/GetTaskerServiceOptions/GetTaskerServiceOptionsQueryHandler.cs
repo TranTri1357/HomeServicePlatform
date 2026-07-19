@@ -17,6 +17,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
 
         public async Task<ApiResponse<List<TaskerServiceOptionDto>>> Handle(GetTaskerServiceOptionsQuery request, CancellationToken ct)
         {
+            var now = DateTimeOffset.UtcNow;
+
             var query = from ts in _context.TaskerServices
                         where ts.TaskerId == request.TaskerId
                         join s in _context.Services on ts.ServiceId equals s.ServiceId
@@ -24,7 +26,12 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
                         join c in _context.Categories on s.CategoryId equals c.CategoryId
                         join p in _context.TaskerServicePrices
                             on new { ts.TaskerId, ts.ServiceId } equals new { p.TaskerId, p.ServiceId } into priceGroup
-                        from price in priceGroup.Where(x => x.EffectiveTo == null).DefaultIfEmpty()
+                        // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: đây là group join,
+                        //    không phải IQueryable gốc nên không gọi được ActiveAt).
+                        from price in priceGroup
+                            .Where(x => x.EffectiveFrom <= now && (x.EffectiveTo == null || x.EffectiveTo > now))
+                            .OrderByDescending(x => x.EffectiveFrom)
+                            .DefaultIfEmpty()
                         select new TaskerServiceOptionDto(
                             s.ServiceId,
                             s.Name,

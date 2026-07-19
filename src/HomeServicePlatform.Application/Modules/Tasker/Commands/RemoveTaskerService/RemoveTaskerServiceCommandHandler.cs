@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using MediatR;
@@ -29,10 +30,11 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.RemoveTaskerSe
             _context.TaskerServices.Remove(taskerService);
 
             // 2. Tìm dòng giá đang hoạt động và cập nhật ngày đóng hiệu lực (EffectiveTo) thành thời điểm hiện tại
+            // 💰 Dùng chung định nghĩa "đang hiệu lực" ở TaskerPriceQuery.
             var activePrice = await _context.TaskerServicePrices
-                .FirstOrDefaultAsync(p => p.TaskerId == request.TaskerId
-                                       && p.ServiceId == request.ServiceId
-                                       && p.EffectiveTo == null, cancellationToken);
+                .Where(p => p.TaskerId == request.TaskerId && p.ServiceId == request.ServiceId)
+                .ActiveAt(DateTimeOffset.UtcNow)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (activePrice != null)
             {

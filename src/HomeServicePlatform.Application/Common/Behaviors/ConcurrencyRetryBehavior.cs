@@ -27,8 +27,7 @@ namespace HomeServicePlatform.Application.Common.Behaviors
     /// EscrowOut đã phát sinh) nên kể cả tình huống biên cũng không cộng tiền hai lần.
     ///
     /// Lệnh nào tự bắt DbUpdateConcurrencyException để trả thông báo riêng (UpdateBookingStatus,
-    /// ResolveDispute, ProcessPaymentCallback) thì ngoại lệ không bao giờ nổi lên tới đây — hành
-    /// vi cũ của chúng giữ nguyên.
+    /// ResolveDispute) thì ngoại lệ không bao giờ nổi lên tới đây — hành vi cũ của chúng giữ nguyên.
     /// </summary>
     public class ConcurrencyRetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
         where TRequest : IRequest<TResponse>
