@@ -22,5 +22,15 @@ namespace HomeServicePlatform.Application.Common.Options
         /// thì tự KHÓA tài khoản (User.Status = 0), chờ Admin mở lại. Từ chối đơn khẩn không tính.
         /// </summary>
         public int TaskerCancelSuspendThreshold { get; set; } = 3;
+
+        /// <summary>
+        /// Đơn ĐÃ THU TIỀN mà thợ không bấm xác nhận trong ngần này phút kể từ lúc tạo thì hệ thống
+        /// tự hủy và hoàn 100% cho khách.
+        ///
+        /// Cố tình KHÔNG dùng chung mốc 15 phút của BookingSlotOccupancy: mốc đó là TTL giữ chỗ cho
+        /// đơn CHƯA trả tiền (nhả slot cho người khác đặt), còn đây là hạn phản hồi của thợ trên một
+        /// đơn khách đã bỏ tiền — đáng được chờ lâu hơn.
+        /// </summary>
+        public int TaskerConfirmDeadlineMinutes { get; set; } = 30;
     }
 }
