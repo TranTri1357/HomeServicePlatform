@@ -9,6 +9,7 @@ using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Domain.Modules.Bookings.Enums;
+using HomeServicePlatform.Domain.Modules.Operations.Enum;
 using HomeServicePlatform.Domain.Modules.Payments.Constants;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
@@ -67,9 +68,14 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
 
                         if (booking != null)
                         {
-                            // Ví dụ: Nếu đồng ý hoàn tiền (NewStatus = 1), chuyển trạng thái đơn sang Đã bồi hoàn/Đóng ca
-                            // Nếu từ chối (NewStatus = 2), hoàn trả đơn về trạng thái hoàn thành cũ
-                            booking.Status = request.NewStatus == 1 ? BookingStatus.Refund : BookingStatus.Completed;
+                            // Kết quả phán quyết hiện thẳng trên trạng thái đơn để khách tự thấy:
+                            //   • Chấp nhận (1) -> "Đã hoàn tiền"        (tiền đã vào ví ở bước 4b)
+                            //   • Từ chối   (2) -> "Khiếu nại bị từ chối"
+                            // Trước đây nhánh từ chối ép đơn về Completed, vừa không cho khách biết
+                            // kết quả, vừa có thể "hồi sinh" nhầm một đơn đã hủy.
+                            booking.Status = request.NewStatus == 1
+                                ? BookingStatus.Refund
+                                : BookingStatus.DisputeRejected;
                             booking.UpdatedAt = now;
                         }
 
@@ -136,6 +142,24 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
 
                         // Ghi nhận số tiền THỰC TẾ đã chuyển (0 nếu đóng ca mà không bồi thường).
                         dispute.RefundAmount = actualRefunded;
+
+                        // 4c. 🔔 Báo kết quả cho NGƯỜI GỬI khiếu nại — trước đây họ phải tự vào xem.
+                        //     Chỉ gửi cho người khiếu nại: khoản bồi thường lấy từ ví doanh thu của
+                        //     sàn nên thợ không bị ảnh hưởng tiền bạc, không cần làm phiền.
+                        _context.Notifications.Add(request.NewStatus == 1
+                            ? NotificationBuilder.Build(
+                                dispute.RaisedById,
+                                NotificationType.DisputeResolved,
+                                "Khiếu nại được chấp nhận",
+                                actualRefunded > 0m
+                                    ? $"Khiếu nại đơn BK{dispute.BookingId} đã được chấp nhận. " +
+                                      $"Số tiền {actualRefunded:N0}đ đã được chuyển vào ví của bạn."
+                                    : $"Khiếu nại đơn BK{dispute.BookingId} đã được chấp nhận. {dispute.ResolutionNote}")
+                            : NotificationBuilder.Build(
+                                dispute.RaisedById,
+                                NotificationType.DisputeRejected,
+                                "Khiếu nại bị từ chối",
+                                $"Khiếu nại đơn BK{dispute.BookingId} không được chấp nhận. Lý do: {dispute.ResolutionNote}"));
 
                         // 5. Chốt gộp câu lệnh
                         await _context.SaveChangesAsync(ct);
