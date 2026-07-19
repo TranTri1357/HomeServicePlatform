@@ -30,22 +30,24 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerServic
                         join s in _context.Services on ts.ServiceId equals s.ServiceId
                         join c in _context.Categories on s.CategoryId equals c.CategoryId
 
-                        // 🟢 Join thêm bảng giá để lấy cột Price
-                        join p in _context.TaskerServicePrices on
-                            new { ts.TaskerId, ts.ServiceId } equals new { p.TaskerId, p.ServiceId } into priceGroup
-                        // 💰 Lấy giá hiện tại — đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng:
-                        //    đây là group join, không phải IQueryable gốc nên không gọi được ActiveAt).
-                        from subPrice in priceGroup
-                            .Where(x => x.EffectiveFrom <= now && (x.EffectiveTo == null || x.EffectiveTo > now))
-                            .OrderByDescending(x => x.EffectiveFrom)
-                            .DefaultIfEmpty()
-
                         select new TaskerServiceDto(
                             ts.TaskerId, // Thay cho TaskerServiceId nếu bảng này là bảng trung gian không có Id tăng tự động
                             s.ServiceId,
                             s.Name,
                             c.Name,
-                            subPrice != null ? subPrice.Price : 0, // 🟢 Lấy từ bảng giá phụ
+                            // 💰 Giá đang hiệu lực — đồng bộ với TaskerPriceQuery.IsActiveAt.
+                            //    ⚠️ Cố tình dùng TRUY VẤN CON thay vì group join + DefaultIfEmpty:
+                            //    EF Core 8 KHÔNG dịch nổi `groupJoin.Where(...).OrderByDescending(...)
+                            //    .DefaultIfEmpty()` khi khoá join là anonymous type ghép 2 cột — nó ném
+                            //    "The LINQ expression could not be translated" ngay lúc chạy. Dạng truy
+                            //    vấn con dưới đây dịch ra scalar subquery bình thường và giữ được thứ tự.
+                            _context.TaskerServicePrices
+                                .Where(p => p.TaskerId == ts.TaskerId && p.ServiceId == ts.ServiceId
+                                            && p.EffectiveFrom <= now
+                                            && (p.EffectiveTo == null || p.EffectiveTo > now))
+                                .OrderByDescending(p => p.EffectiveFrom)
+                                .Select(p => p.Price)
+                                .FirstOrDefault(),
                             s.DurationMinutes,
                             s.IsActive, // 🟢 Lấy trạng thái hoạt động trực tiếp từ bảng gốc Services (hoặc s.IsDeleted tùy logic)
                             s.ImageUrl
