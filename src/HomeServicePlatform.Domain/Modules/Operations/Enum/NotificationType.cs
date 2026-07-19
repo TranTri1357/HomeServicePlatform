@@ -17,6 +17,10 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Enum
         WorkStarted = 12,             // Thợ bắt đầu làm
         WorkCompleted = 13,           // Hoàn thành công việc
         BookingCancelledByTasker = 14, // Thợ hủy đơn
-        RefundIssued = 15             // Đã hoàn tiền vào ví khách sau khi hủy đơn
+        RefundIssued = 15,            // Đã hoàn tiền vào ví khách sau khi hủy đơn
+
+        // Kết quả xử lý khiếu nại — gửi cho người đã gửi khiếu nại (khách hoặc thợ)
+        DisputeResolved = 16,         // Admin chấp nhận khiếu nại (kèm số tiền bồi thường nếu có)
+        DisputeRejected = 17          // Admin từ chối khiếu nại (kèm lý do trong body)
     }
 }

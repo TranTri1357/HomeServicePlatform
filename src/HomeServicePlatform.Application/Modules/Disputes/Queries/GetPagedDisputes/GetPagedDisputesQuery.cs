@@ -24,7 +24,7 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Queries.GetPagedDispu
     );
 
     public record GetPagedDisputesQuery(
-        short? Status, // Lọc trạng thái (0: Mở, 1: Đã giải quyết, 2: Từ chối)
+        short? Status, // Lọc trạng thái (0: Chờ xử lý, 1: Đã hoàn tiền, 2: Khiếu nại bị từ chối)
         int PageIndex = 1,
         int PageSize = 10
     ) : IRequest<ApiResponse<PagedResult<DisputeLookupDto>>>;

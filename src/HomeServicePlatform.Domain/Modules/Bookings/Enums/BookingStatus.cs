@@ -13,7 +13,8 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Enums
         OnTheWay = 2,         // Trên đường đến (Thợ bấm di chuyển tới nhà khách)
         InProgress = 3,       // Đang thực hiện (Thợ bắt đầu làm việc) 
         Completed = 4,        // Hoàn thành (Tiền đã vào ví, kết thúc đơn hoàn toàn)
-        Cancelled = 5,         // Đã hủy (Khách hoặc hệ thống hủy đơn)
-        Refund = 6           // Đang hoàn tiền (Admin đang xử lý hoàn tiền cho khách)
+        Cancelled = 5,        // Đã hủy (Khách hoặc hệ thống hủy đơn)
+        Refund = 6,           // Đã hoàn tiền (Admin duyệt khiếu nại, tiền đã vào ví khách)
+        DisputeRejected = 7   // Khiếu nại bị từ chối (Admin bác khiếu nại, đơn giữ nguyên kết quả)
     }
 }
