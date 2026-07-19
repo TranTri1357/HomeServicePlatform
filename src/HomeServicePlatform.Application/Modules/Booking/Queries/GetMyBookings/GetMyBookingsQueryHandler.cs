@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Pagination;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
 
@@ -30,6 +31,20 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetMyBookings
             var query = _context.Bookings
                 .AsNoTracking()
                 .Where(b => b.CustomerId == request.CustomerId);
+
+            // 🚨 Ẩn "đơn khẩn cấp trượt": đã broadcast nhưng hết hạn mà KHÔNG thợ nào nhận.
+            // Với khách thì đây không phải một đơn — nó giống cuộc gọi nhỡ. Giá cũng luôn là 0đ
+            // vì giá đơn khẩn chỉ được chốt theo bảng giá của thợ TẠI LÚC thợ nhận, nên hiển thị
+            // ra chỉ gây khó hiểu. Bản ghi vẫn giữ nguyên trong DB để thống kê tỉ lệ đáp ứng.
+            //
+            // Ba điều kiện sau BẮT BUỘC đi cùng nhau — chỉ dựa vào "khẩn cấp + đã hủy" sẽ ẩn nhầm
+            // đơn khẩn đã có thợ nhận rồi mới hủy sau, mà đơn đó là đơn thật và có thể dính tiền.
+            query = query.Where(b => !(
+                b.IsEmergency
+                && b.Status == BookingStatus.Cancelled
+                && !b.BookingItems.Any(i => i.TaskerId != null)
+                && !_context.Payments.Any(p => p.BookingId == b.BookingId
+                                               && p.Status == (short)PaymentStatus.Paid)));
 
             // Lọc theo tab (tập trạng thái) — thực hiện tại SQL, không lọc ở client nữa.
             if (request.Statuses is { Count: > 0 })

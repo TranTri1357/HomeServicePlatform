@@ -10,6 +10,7 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Enum
         EmergencyBooking = 4,         // Khách gọi thợ khẩn cấp (đơn trực tiếp, cần phản hồi trong 30s)
         ProfileApproved = 5,          // Admin duyệt hồ sơ thợ
         ProfileRejected = 6,          // Admin từ chối hồ sơ thợ (kèm lý do trong body)
+        BookingExpiredUnconfirmed = 7, // Đơn tự hủy vì thợ không xác nhận kịp hạn
 
         // Gửi cho Khách
         BookingAccepted = 10,         // Thợ nhận đơn
@@ -21,6 +22,7 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Enum
 
         // Kết quả xử lý khiếu nại — gửi cho người đã gửi khiếu nại (khách hoặc thợ)
         DisputeResolved = 16,         // Admin chấp nhận khiếu nại (kèm số tiền bồi thường nếu có)
-        DisputeRejected = 17          // Admin từ chối khiếu nại (kèm lý do trong body)
+        DisputeRejected = 17,         // Admin từ chối khiếu nại (kèm lý do trong body)
+        BookingAutoCancelled = 18     // Hệ thống tự hủy đơn (quá hạn giữ chỗ / thợ không xác nhận)
     }
 }

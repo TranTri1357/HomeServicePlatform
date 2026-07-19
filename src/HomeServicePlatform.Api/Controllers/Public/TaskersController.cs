@@ -1,4 +1,5 @@
 ﻿using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearbyTaskers;
+using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServiceTaskers;
 using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerAvailability;
 using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerDetail;
 using HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaskerQuickInfo;
@@ -56,6 +57,25 @@ namespace HomeServicePlatform.Api.Controllers.Public
         {
             var query = new GetTopTaskersQuery { Limit = limit };
             var result = await _mediator.Send(query);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>Thợ nhận một dịch vụ, sắp theo đánh giá + phân trang "tải thêm" (mặc định 5/trang).</summary>
+        [HttpGet("by-service/{serviceId:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTaskersByService(
+            long serviceId, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 5)
+        {
+            var result = await _mediator.Send(new GetServiceTaskersQuery(serviceId, pageIndex, pageSize));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>Một thẻ thợ cho dịch vụ — để ghim thợ khách chọn sẵn lên đầu danh sách.</summary>
+        [HttpGet("by-service/{serviceId:long}/tasker/{taskerId:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetServiceTaskerCard(long serviceId, long taskerId)
+        {
+            var result = await _mediator.Send(new GetServiceTaskerCardQuery(serviceId, taskerId));
             return StatusCode(result.StatusCode, result);
         }
 
