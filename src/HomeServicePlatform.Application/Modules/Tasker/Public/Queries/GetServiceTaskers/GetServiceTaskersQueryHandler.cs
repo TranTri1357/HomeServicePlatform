@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Pagination;
 using HomeServicePlatform.Application.Common.Responses;
@@ -35,6 +37,16 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
                              && !ts.TaskerProfile.IsDeleted
                              && ts.TaskerProfile.Status == 1);
 
+            // 📍 Lọc theo tỉnh/thành của địa chỉ khách đang đặt: chỉ giữ thợ có ÍT NHẤT một
+            // địa chỉ cùng tỉnh. Dịch sang EXISTS nên phân trang vẫn đếm đúng.
+            // Thợ chưa khai địa chỉ sẽ bị loại — đúng ý: không thể khẳng định họ ở gần khách.
+            if (!string.IsNullOrWhiteSpace(request.ProvinceCode))
+            {
+                var provinceCode = request.ProvinceCode!.Trim();
+                query = query.Where(ts => _context.Addresses
+                    .Any(a => a.UserId == ts.TaskerId && a.ProvinceCode == provinceCode));
+            }
+
             var totalCount = await query.CountAsync(ct);
 
             // ⚠️ SORT PHẢI ỔN ĐỊNH cho phân trang: chỉ theo RatingAvg thì các thợ CÙNG điểm
@@ -64,6 +76,20 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
                         .FirstOrDefault()
                 })
                 .ToListAsync(ct);
+
+            // 📍 Gắn khu vực + khoảng cách cho đúng trang vừa lấy (1 truy vấn phụ, tối đa
+            // pageSize thợ). Không lồng vào Select ở trên để SQL còn dễ đọc và dễ dịch.
+            var locations = await TaskerLocationResolver.LoadAsync(
+                _context, items.Select(i => i.TaskerId).ToList(), ct);
+
+            foreach (var item in items)
+            {
+                if (!locations.TryGetValue(item.TaskerId, out var loc)) continue;
+                item.ProvinceCode = loc.ProvinceCode;
+                item.DistrictCode = loc.DistrictCode;
+                item.DistanceKm = TaskerLocationResolver.DistanceKm(
+                    request.CustomerLat, request.CustomerLng, loc.Lat, loc.Lng);
+            }
 
             var result = new PagedResult<ServiceTaskerSuggestionDto>
             {

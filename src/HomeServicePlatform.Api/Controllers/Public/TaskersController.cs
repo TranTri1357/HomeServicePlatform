@@ -60,22 +60,37 @@ namespace HomeServicePlatform.Api.Controllers.Public
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Thợ nhận một dịch vụ, sắp theo đánh giá + phân trang "tải thêm" (mặc định 5/trang).</summary>
+        /// <summary>
+        /// Thợ nhận một dịch vụ, sắp theo đánh giá + phân trang "tải thêm" (mặc định 5/trang).
+        /// Truyền <paramref name="provinceCode"/> để chỉ lấy thợ cùng tỉnh với địa chỉ khách đặt;
+        /// truyền lat/lng để mỗi thẻ thợ kèm khoảng cách.
+        /// </summary>
         [HttpGet("by-service/{serviceId:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetTaskersByService(
-            long serviceId, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 5)
+            long serviceId,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 5,
+            [FromQuery] string? provinceCode = null,
+            [FromQuery] double? lat = null,
+            [FromQuery] double? lng = null)
         {
-            var result = await _mediator.Send(new GetServiceTaskersQuery(serviceId, pageIndex, pageSize));
+            var result = await _mediator.Send(
+                new GetServiceTaskersQuery(serviceId, pageIndex, pageSize, provinceCode, lat, lng));
             return StatusCode(result.StatusCode, result);
         }
 
         /// <summary>Một thẻ thợ cho dịch vụ — để ghim thợ khách chọn sẵn lên đầu danh sách.</summary>
         [HttpGet("by-service/{serviceId:long}/tasker/{taskerId:long}")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetServiceTaskerCard(long serviceId, long taskerId)
+        public async Task<IActionResult> GetServiceTaskerCard(
+            long serviceId,
+            long taskerId,
+            [FromQuery] double? lat = null,
+            [FromQuery] double? lng = null)
         {
-            var result = await _mediator.Send(new GetServiceTaskerCardQuery(serviceId, taskerId));
+            var result = await _mediator.Send(
+                new GetServiceTaskerCardQuery(serviceId, taskerId, lat, lng));
             return StatusCode(result.StatusCode, result);
         }
 

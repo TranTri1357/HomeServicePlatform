@@ -23,6 +23,10 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Enum
         // Kết quả xử lý khiếu nại — gửi cho người đã gửi khiếu nại (khách hoặc thợ)
         DisputeResolved = 16,         // Admin chấp nhận khiếu nại (kèm số tiền bồi thường nếu có)
         DisputeRejected = 17,         // Admin từ chối khiếu nại (kèm lý do trong body)
-        BookingAutoCancelled = 18     // Hệ thống tự hủy đơn (quá hạn giữ chỗ / thợ không xác nhận)
+        BookingAutoCancelled = 18,    // Hệ thống tự hủy đơn (quá hạn giữ chỗ / thợ không xác nhận)
+
+        // Thợ từ chối đơn CHƯA NHẬN. Tách khỏi BookingCancelledByTasker (=14, thợ bỏ đơn ĐÃ NHẬN)
+        // vì mức độ khác hẳn: từ chối là quyền bình thường của thợ, không phải thất hứa phút chót.
+        BookingDeclinedByTasker = 19
     }
 }
