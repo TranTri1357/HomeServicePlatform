@@ -6,6 +6,7 @@ using HomeServicePlatform.Application.Modules.Booking.Commands.AcceptBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.CompleteWork;
 using HomeServicePlatform.Application.Modules.Booking.Commands.DeclineEmergencyBooking;
+using HomeServicePlatform.Application.Modules.Booking.Commands.DeclinePendingBooking;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartMoving;
 using HomeServicePlatform.Application.Modules.Booking.Commands.StartWorking;
 using HomeServicePlatform.Application.Modules.Booking.Emergency;
@@ -161,6 +162,26 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
                 return Unauthorized();
 
             var result = await _mediator.Send(new DeclineEmergencyBookingCommand(id, taskerId, timedOut));
+            return StatusCode(result.StatusCode, result);
+        }
+
+        // ❌ Thợ TỪ CHỐI đơn thường CHƯA NHẬN (Pending): đơn hủy + hoàn 100% cho khách, thợ KHÔNG bị
+        //    ghi nhận lần hủy nào. Tách hẳn khỏi /cancel (thợ bỏ đơn ĐÃ NHẬN, có phạt độ tin cậy) —
+        //    trước đây app thợ gọi /cancel cho cả hai nên nút "Từ chối" luôn trả 400.
+        [HttpPut("{id:long}/decline")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> DeclineBooking(
+            [FromRoute] long id, [FromBody] DeclinePendingBookingCommand command)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
+            if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
+                return Unauthorized();
+
+            // 🔒 CHỐNG ID-SPOOFING: đè ID từ route + token, bỏ qua giá trị client gửi lên.
+            var securedCommand = command with { BookingId = id, TaskerId = taskerId };
+
+            var result = await _mediator.Send(securedCommand);
+            if (result.Succeeded) await NotifyCustomerAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 

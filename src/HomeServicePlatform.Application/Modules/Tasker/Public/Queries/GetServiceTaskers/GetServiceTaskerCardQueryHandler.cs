@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
 using HomeServicePlatform.Application.Modules.Services.Dtos;
@@ -47,6 +48,21 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
                         .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync(ct);
+
+            // 📍 Cùng cách gắn khu vực/khoảng cách như danh sách thợ.
+            if (card != null)
+            {
+                var locations = await TaskerLocationResolver.LoadAsync(
+                    _context, new[] { card.TaskerId }, ct);
+
+                if (locations.TryGetValue(card.TaskerId, out var loc))
+                {
+                    card.ProvinceCode = loc.ProvinceCode;
+                    card.DistrictCode = loc.DistrictCode;
+                    card.DistanceKm = TaskerLocationResolver.DistanceKm(
+                        request.CustomerLat, request.CustomerLng, loc.Lat, loc.Lng);
+                }
+            }
 
             return ApiResponse<ServiceTaskerSuggestionDto?>.Success(
                 card, "Lấy thẻ thợ theo dịch vụ thành công.");
