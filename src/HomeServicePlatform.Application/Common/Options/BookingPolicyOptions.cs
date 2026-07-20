@@ -21,5 +21,18 @@ namespace HomeServicePlatform.Application.Common.Options
         /// Chỉ tắt tạm thời và bật lại ngay sau khi xử lý xong sự cố.
         /// </summary>
         public bool EnforceWorkingHours { get; set; } = true;
+
+        /// <summary>
+        /// % giá trị đơn khách phải đặt cọc (phần còn lại trả tiền mặt khi hoàn thành).
+        ///
+        /// ⚠️ NGUỒN SỰ THẬT DUY NHẤT — dùng ở HAI nơi và bắt buộc phải là cùng một con số:
+        ///   1. <c>ProcessCheckout</c>: số tiền thực thu khi khách chọn "Đặt cọc".
+        ///   2. <c>RefundPolicy</c>: phần tiền CHỊU RỦI RO khi hủy đơn.
+        ///
+        /// Nếu hai nơi lệch nhau, khách đặt cọc sẽ bị tính phí hủy trên một khoản khác với
+        /// khoản họ đã nộp — sai lệch âm thầm, rất khó phát hiện. Trước đây giá trị này là
+        /// hằng số private nằm riêng trong ProcessCheckoutCommandHandler nên dễ lệch.
+        /// </summary>
+        public int DepositPercent { get; set; } = 30;
     }
 }
