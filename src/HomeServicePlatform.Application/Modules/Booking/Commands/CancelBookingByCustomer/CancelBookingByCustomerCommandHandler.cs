@@ -22,13 +22,16 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
     {
         private readonly IApplicationDbContext _context;
         private readonly RefundPolicyOptions _policy;
+        private readonly BookingPolicyOptions _bookingPolicy;
 
         public CancelBookingByCustomerCommandHandler(
             IApplicationDbContext context,
-            IOptions<RefundPolicyOptions> policy)
+            IOptions<RefundPolicyOptions> policy,
+            IOptions<BookingPolicyOptions> bookingPolicy)
         {
             _context = context;
             _policy = policy.Value;
+            _bookingPolicy = bookingPolicy.Value;
         }
 
         public async Task<ApiResponse<bool>> Handle(CancelBookingByCustomerCommand request, CancellationToken ct)
@@ -56,7 +59,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
 
             var now = DateTimeOffset.UtcNow;
             var decision = RefundPolicy.Calculate(
-                booking.Status, scheduledAt, now, RefundInitiator.Customer, totalPaid, _policy);
+                booking.Status, scheduledAt, now, RefundInitiator.Customer,
+                totalPaid, booking.FinalAmount, _bookingPolicy.DepositPercent, _policy);
 
             if (!decision.CanCancel)
                 throw new BadRequestException(decision.Reason);

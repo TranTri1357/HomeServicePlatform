@@ -19,11 +19,16 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetCancellatio
     {
         private readonly IApplicationDbContext _context;
         private readonly RefundPolicyOptions _policy;
+        private readonly BookingPolicyOptions _bookingPolicy;
 
-        public GetCancellationPreviewQueryHandler(IApplicationDbContext context, IOptions<RefundPolicyOptions> policy)
+        public GetCancellationPreviewQueryHandler(
+            IApplicationDbContext context,
+            IOptions<RefundPolicyOptions> policy,
+            IOptions<BookingPolicyOptions> bookingPolicy)
         {
             _context = context;
             _policy = policy.Value;
+            _bookingPolicy = bookingPolicy.Value;
         }
 
         public async Task<ApiResponse<CancellationPreviewDto>> Handle(GetCancellationPreviewQuery request, CancellationToken ct)
@@ -48,7 +53,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetCancellatio
                 : (DateTimeOffset?)null;
 
             var decision = RefundPolicy.Calculate(
-                booking.Status, scheduledAt, DateTimeOffset.UtcNow, RefundInitiator.Customer, totalPaid, _policy);
+                booking.Status, scheduledAt, DateTimeOffset.UtcNow, RefundInitiator.Customer,
+                totalPaid, booking.FinalAmount, _bookingPolicy.DepositPercent, _policy);
 
             var dto = new CancellationPreviewDto(
                 booking.BookingId,
@@ -58,6 +64,7 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetCancellatio
                 decision.RefundPercent,
                 decision.RefundAmount,
                 decision.PenaltyAmount,
+                decision.DepositAtRisk,
                 decision.Reason);
 
             return ApiResponse<CancellationPreviewDto>.Success(dto, "Xem trước chính sách hủy đơn.");

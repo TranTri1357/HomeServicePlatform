@@ -25,11 +25,16 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
     {
         private readonly IApplicationDbContext _context;
         private readonly RefundPolicyOptions _policy;
+        private readonly BookingPolicyOptions _bookingPolicy;
 
-        public CancelBookingCommandHandler(IApplicationDbContext context, IOptions<RefundPolicyOptions> policy)
+        public CancelBookingCommandHandler(
+            IApplicationDbContext context,
+            IOptions<RefundPolicyOptions> policy,
+            IOptions<BookingPolicyOptions> bookingPolicy)
         {
             _context = context;
             _policy = policy.Value;
+            _bookingPolicy = bookingPolicy.Value;
         }
 
         public async Task<ApiResponse<bool>> Handle(CancelBookingCommand request, CancellationToken ct)
@@ -62,7 +67,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
 
             // Thợ hủy -> chính sách trả 100% cho khách (scheduledAt không ảnh hưởng).
             var decision = RefundPolicy.Calculate(
-                booking.Status, null, now, RefundInitiator.Tasker, totalPaid, _policy);
+                booking.Status, null, now, RefundInitiator.Tasker,
+                totalPaid, booking.FinalAmount, _bookingPolicy.DepositPercent, _policy);
 
             // Cập nhật trạng thái đơn + hạng mục + Audit Trail (ChangedBy = thợ).
             short oldStatus = (short)booking.Status;

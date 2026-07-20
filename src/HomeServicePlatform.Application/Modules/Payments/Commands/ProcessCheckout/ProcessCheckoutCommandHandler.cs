@@ -4,8 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using HomeServicePlatform.Application.Common.Exceptions;
+using HomeServicePlatform.Application.Common.Helpers;
 using HomeServicePlatform.Application.Common.Interfaces;
+using HomeServicePlatform.Application.Common.Options;
 using HomeServicePlatform.Application.Common.Responses;
+using Microsoft.Extensions.Options;
 using HomeServicePlatform.Domain.Modules.Payments.Entities;
 using HomeServicePlatform.Domain.Modules.Payments.Enum;
 using MediatR;
@@ -17,15 +20,17 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
     {
         private readonly IApplicationDbContext _context;
         private readonly IEnumerable<IPaymentStrategy> _strategies; // Tự động nạp toàn bộ danh sách cổng thanh toán qua DI
+        private readonly BookingPolicyOptions _bookingPolicy;
 
-        public ProcessCheckoutCommandHandler(IApplicationDbContext context, IEnumerable<IPaymentStrategy> strategies)
+        public ProcessCheckoutCommandHandler(
+            IApplicationDbContext context,
+            IEnumerable<IPaymentStrategy> strategies,
+            IOptions<BookingPolicyOptions> bookingPolicy)
         {
             _context = context;
             _strategies = strategies;
+            _bookingPolicy = bookingPolicy.Value;
         }
-
-        // 💰 Tỷ lệ đặt cọc (khớp với frontend). Cọc 30%, phần còn lại trả khi hoàn thành.
-        private const decimal DepositRate = 0.30m;
 
         public async Task<ApiResponse<CheckoutResponse>> Handle(ProcessCheckoutCommand request, CancellationToken ct)
         {
@@ -50,8 +55,10 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.ProcessCheck
                 throw new BadRequestException("Đơn hàng này đã được thanh toán trước đó.");
 
             // 2. 💰 SỐ TIỀN DO SERVER TÍNH từ FinalAmount — KHÔNG tin số client gửi.
+            // Cùng công thức với RefundPolicy.DepositOf — khách nộp bao nhiêu cọc thì khi hủy
+            // đúng khoản đó là phần chịu rủi ro, không hơn.
             decimal amount = request.IsDeposit
-                ? Math.Round(booking.FinalAmount * DepositRate, 0, MidpointRounding.AwayFromZero)
+                ? RefundPolicy.DepositOf(booking.FinalAmount, _bookingPolicy.DepositPercent)
                 : booking.FinalAmount;
             if (amount <= 0)
                 throw new BadRequestException("Số tiền cần thanh toán của đơn không hợp lệ.");
