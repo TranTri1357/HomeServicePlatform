@@ -106,30 +106,35 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerDashbo
                 .Select(g => new { BookingId = g.Key, Amount = g.Sum(x => x.Amount) })
                 .ToDictionaryAsync(x => x.BookingId, x => x.Amount, ct);
 
-            var grossByBooking = periodItems
+            var itemGrossByBooking = periodItems
                 .GroupBy(i => i.BookingId)
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.TotalPrice));
 
-            decimal ActualNetOfBooking(long bookingId)
-            {
-                var gross = grossByBooking.TryGetValue(bookingId, out var g) ? g : 0m;
-                creditedByBooking.TryGetValue(bookingId, out var credited);
-                settledByBooking.TryGetValue(bookingId, out var settled);
-                return credited + Math.Max(0m, gross - settled);
-            }
-
             decimal NetOfItem(long bookingId, decimal itemGross)
             {
-                var gross = grossByBooking.TryGetValue(bookingId, out var g) ? g : 0m;
-                if (gross <= 0m) return 0m;
-                return Math.Round(ActualNetOfBooking(bookingId) * (itemGross / gross), 0, MidpointRounding.AwayFromZero);
+                var settled = settledByBooking.TryGetValue(bookingId, out var s) ? s : 0m;
+                if (settled <= 0m) return 0m;
+                var credited = creditedByBooking.TryGetValue(bookingId, out var c) ? c : 0m;
+                credited = Math.Min(credited, settled);
+                var grossSum = itemGrossByBooking.TryGetValue(bookingId, out var g) ? g : 0m;
+                if (grossSum <= 0m) return 0m;
+                return Math.Round(credited * (itemGross / grossSum), 0, MidpointRounding.AwayFromZero);
             }
 
+            var monthBookingIds = periodItems
+                .Where(i => i.StartAt >= monthStartUtc)
+                .Select(i => i.BookingId)
+                .Distinct()
+                .ToList();
+
             decimal monthGross = 0m, monthEarnings = 0m;
-            foreach (var it in periodItems.Where(i => i.StartAt >= monthStartUtc))
+            foreach (var id in monthBookingIds)
             {
-                monthGross += it.TotalPrice;
-                monthEarnings += NetOfItem(it.BookingId, it.TotalPrice);
+                var settled = settledByBooking.TryGetValue(id, out var s) ? s : 0m;
+                if (settled <= 0m) continue;
+                var credited = creditedByBooking.TryGetValue(id, out var c) ? c : 0m;
+                monthGross += settled;
+                monthEarnings += Math.Min(credited, settled);
             }
             var monthCommission = monthGross - monthEarnings;
 
