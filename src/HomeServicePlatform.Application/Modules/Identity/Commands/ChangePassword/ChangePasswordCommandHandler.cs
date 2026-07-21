@@ -30,15 +30,12 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.ChangePasswo
             if (user == null)
                 throw new NotFoundException("Không tìm thấy tài khoản.");
 
-            // 🔒 Xác thực mật khẩu hiện tại trước khi cho đổi.
             if (!_passwordHasher.Verify(request.OldPassword, user.PasswordHash))
                 throw new BadRequestException("Mật khẩu hiện tại không đúng.");
 
             user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
             user.UpdatedAt = System.DateTimeOffset.UtcNow;
 
-            // 🔐 Thu hồi toàn bộ refresh token còn hiệu lực (Type=1) để đăng xuất các thiết bị khác
-            //    — đổi mật khẩu thì phiên cũ không còn được tự gia hạn nữa.
             var now = System.DateTimeOffset.UtcNow;
             var activeTokens = await _context.Tokens
                 .Where(t => t.UserId == user.UserId && t.Type == 1 && !t.IsRevoked)

@@ -25,18 +25,14 @@ namespace HomeServicePlatform.Application.Modules.Payments.Commands.TopUpWallet
             if (request.Amount <= 0)
                 throw new BadRequestException("Số tiền nạp phải lớn hơn 0.");
 
-            // 🛡️ Hai ví hệ thống chỉ được biến động bởi bút toán nội bộ, không bao giờ qua API người dùng.
             if (SystemAccounts.IsSystemAccount(request.CustomerId))
                 throw new ForbiddenException("Không thể thao tác trực tiếp trên ví hệ thống.");
 
-            // 🛡️ Lặp lại kiểm tra của validator: handler là hàng rào cuối, không phụ thuộc việc
-            // pipeline validation có được gắn hay không.
             if (request.Method != PaymentMethod.Momo && request.Method != PaymentMethod.ZaloPay)
                 throw new BadRequestException("Chỉ hỗ trợ nạp ví qua MoMo hoặc ZaloPay.");
 
             var wallet = await WalletLedger.ResolveOneAsync(_context, request.CustomerId, ct);
 
-            // ĐẦU VÀO của dòng tiền: tiền từ bên ngoài đi vào hệ thống nên chỉ có một vế ghi có.
             WalletLedger.Credit(
                 wallet,
                 WalletTransactionType.TopUp,

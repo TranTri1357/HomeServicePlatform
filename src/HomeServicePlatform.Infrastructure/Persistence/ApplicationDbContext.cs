@@ -56,19 +56,15 @@ namespace HomeServicePlatform.Infrastructure.Persistence
         {
             base.OnModelCreating(modelBuilder);
 
-            // Kích hoạt Extension hệ thống
             modelBuilder.HasPostgresExtension("postgis");
             modelBuilder.HasPostgresExtension("btree_gist");
-            // Trigram: cho phép index GIN phục vụ tìm kiếm ILIKE '%...%' (tên dịch vụ) nhanh.
             modelBuilder.HasPostgresExtension("pg_trgm");
 
-            // TỰ ĐỘNG NẠP TOÀN BỘ CONFIGURATION FILE (Quét qua Assembly hiện tại)
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // Quét tìm tất cả các bảng (Entity) đang chuẩn bị Thêm mới hoặc Cập nhật
             var entries = ChangeTracker.Entries()
                 .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
@@ -76,7 +72,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence
             {
                 var now = DateTimeOffset.UtcNow;
 
-                // Nếu là CẬP NHẬT (Modified), tự động tìm cột UpdatedAt và điền giờ
                 if (entry.State == EntityState.Modified)
                 {
                     var updatedAtProp = entry.Entity.GetType().GetProperty("UpdatedAt");
@@ -86,7 +81,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence
                     }
                 }
 
-                // Nếu là THÊM MỚI (Added), tự động điền giờ cho cả CreatedAt và UpdatedAt
                 if (entry.State == EntityState.Added)
                 {
                     var createdAtProp = entry.Entity.GetType().GetProperty("CreatedAt");
@@ -95,7 +89,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence
                         createdAtProp.SetValue(entry.Entity, now);
                     }
 
-                    // (Tùy chọn) Gán luôn UpdatedAt lúc tạo để dễ query sắp xếp sau này
                     var updatedAtProp = entry.Entity.GetType().GetProperty("UpdatedAt");
                     if (updatedAtProp != null && updatedAtProp.CanWrite)
                     {
@@ -107,27 +100,12 @@ namespace HomeServicePlatform.Infrastructure.Persistence
             return base.SaveChangesAsync(cancellationToken);
         }
 
-        /// <summary>
-        /// Giữ advisory lock theo thợ trong transaction hiện tại (chống double-booking đồng thời).
-        /// Khóa cùng một khóa (theo taskerId) sẽ tuần tự hóa; tự nhả khi transaction kết thúc.
-        /// </summary>
         public Task AcquireTaskerScheduleLockAsync(long taskerId, CancellationToken cancellationToken = default)
             => Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({taskerId})", cancellationToken);
 
-        /// <summary>
-        /// Giữ advisory lock theo đơn để tuần tự hóa việc giành đơn khẩn cấp broadcast.
-        /// Dùng biến thể HAI khóa int (class=1, objId=bookingId) — KHÔNG gian khóa TÁCH BIỆT
-        /// với khóa theo thợ (dạng một khóa bigint) nên không bao giờ đụng độ nhau.
-        /// </summary>
         public Task AcquireBookingClaimLockAsync(long bookingId, CancellationToken cancellationToken = default)
             => Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1, {(int)bookingId})", cancellationToken);
 
-        /// <summary>
-        /// Vứt bỏ toàn bộ thực thể đang được ChangeTracker theo dõi, đưa DbContext về trạng thái
-        /// sạch như vừa khởi tạo. Dùng khi một lệnh bị đụng độ đồng thời và cần CHẠY LẠI TỪ ĐẦU:
-        /// nếu không xóa, lần chạy lại sẽ tái sử dụng bản ghi cũ (số dư ví đã lỗi thời, các bản
-        /// ghi Added còn treo) và ghi sai tiếp.
-        /// </summary>
         public void ResetTrackedChanges() => ChangeTracker.Clear();
     }
 }

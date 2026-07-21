@@ -9,9 +9,9 @@ using MediatR;
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.UpdateBookingStatus
 {
     public record UpdateBookingStatusCommand(
-        long BookingId,            // Nhận từ Route URL
-        short NewStatus,           // Trạng thái mới hướng tới
-        long ChangedBy,            // ID Admin hoặc Khách hàng thực hiện
-        int CurrentRowVersion      // Bảo mật Concurrency chống ghi đè dữ liệu cũ
+        long BookingId,
+        short NewStatus,
+        long ChangedBy,
+        int CurrentRowVersion
     ) : IRequest<ApiResponse<bool>>;
 }

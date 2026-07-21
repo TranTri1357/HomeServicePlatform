@@ -24,8 +24,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings
 
         public async Task SaveAggregateAsync(DomainBooking booking)
         {
-            // Nếu caller đã mở transaction (vd để giữ advisory lock chống double-booking), THAM GIA
-            // vào transaction đó — Npgsql không hỗ trợ transaction lồng nên không tự mở thêm.
             if (_context.Database.CurrentTransaction != null)
             {
                 _context.Bookings.Add(booking);
@@ -49,8 +47,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings
         }
         public async Task<DomainBooking?> GetByIdAsync(long id)
         {
-            // Dùng Include để nạp sẵn dữ liệu BookingItems và BookingHistories lên bộ nhớ RAM.
-            // Tránh lỗi Lazy Loading và chuẩn hóa dữ liệu cho Aggregate Root xử lý logic.
             return await _context.Bookings
                 .Include(b => b.BookingItems)
                 .Include(b => b.BookingHistories)
@@ -59,32 +55,22 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Bookings
 
         public async Task UpdateAggregateAsync(DomainBooking booking)
         {
-            // Nếu caller đã mở transaction (vd luồng nhận đơn khẩn cấp giữ advisory lock để giành đơn),
-            // THAM GIA vào transaction đó — Npgsql không hỗ trợ transaction lồng nên không tự mở thêm.
             if (_context.Database.CurrentTransaction != null)
             {
                 await _context.SaveChangesAsync();
                 return;
             }
 
-            // Sử dụng Database Transaction đảm bảo chuỗi cập nhật (bảng chính + bảng phụ)
-            // Nếu có 1 lệnh lỗi, toàn bộ dữ liệu sẽ tự động rollback an toàn tuyệt đối.
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // ⚠️ KHÔNG gọi _context.Bookings.Update(booking): booking được nạp ở chế
-                // độ tracking (GetByIdAsync), còn Update() đánh dấu CẢ graph là Modified —
-                // khiến BookingHistory mới (HistoryId = 0) bị hiểu nhầm là "cập nhật" →
-                // sinh UPDATE 0 dòng, im lặng không INSERT (bug mất lịch sử chuyển trạng thái).
-                // Chỉ cần SaveChanges: ChangeTracker tự nhận diện bản ghi mới trong collection
-                // là Added (INSERT) và các thay đổi trạng thái là Modified (UPDATE).
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
             }
             catch (Exception)
             {
                 await transaction.RollbackAsync();
-                throw; // Ném ngược lỗi ra ngoài để Global Middleware xử lý
+                throw;
             }
         }
     }

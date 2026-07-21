@@ -23,7 +23,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
 {
     [ApiController]
     [Route("api/tasker/bookings")]
-    [Authorize(Roles = "Tasker")] // 🛡️ BẢO MẬT: Chỉ cho phép tài khoản Thợ (Tasker) thao tác quy trình
+    [Authorize(Roles = "Tasker")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -40,7 +40,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             _context = context;
         }
 
-        // Bắn realtime trạng thái đơn mới nhất về cho khách hàng chủ đơn.
         private async Task NotifyCustomerAsync(long bookingId)
         {
             var info = await _context.Bookings.AsNoTracking()
@@ -58,7 +57,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> Accept([FromRoute] long id)
         {
-            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
             {
@@ -69,14 +67,11 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             if (result.Succeeded)
             {
                 await NotifyCustomerAsync(id);
-                // 🚨 Đơn khẩn broadcast: báo các thợ còn lại đóng modal (đơn đã có người nhận).
                 await NotifyOtherEmergencyTaskersAsync(id, winnerTaskerId: taskerId);
             }
             return StatusCode(result.StatusCode, result);
         }
 
-        // Với đơn khẩn cấp vừa được một thợ nhận: bắn "ReceiveEmergencyCancelled" tới các thợ khác
-        // (đang rảnh, cùng dịch vụ, trong 15km) để hộp thoại đơn khẩn của họ tự đóng ngay.
         private async Task NotifyOtherEmergencyTaskersAsync(long bookingId, long winnerTaskerId)
         {
             var info = await _context.Bookings.AsNoTracking()
@@ -106,7 +101,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> StartMoving([FromRoute] long id)
         {
-            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
             {
@@ -122,7 +116,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> StartWorking([FromRoute] long id)
         {
-            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
             {
@@ -138,7 +131,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> CompleteWork([FromRoute] long id)
         {
-            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
             {
@@ -150,9 +142,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return StatusCode(result.StatusCode, result);
         }
 
-        // 🚨 Thợ BỎ QUA đơn khẩn cấp broadcast: chỉ đóng modal của riêng thợ này và ghi nhận để không
-        //    mời lại ở các vòng nới bán kính sau. KHÔNG hủy đơn — đơn vẫn treo cho thợ khác nhận, và
-        //    khách cũng không cần biết từng thợ lẻ từ chối (nên không bắn SignalR về phía khách nữa).
         [HttpPost("emergency/{id:long}/decline")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> DeclineEmergency([FromRoute] long id, [FromQuery] bool timedOut = false)
@@ -165,9 +154,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return StatusCode(result.StatusCode, result);
         }
 
-        // ❌ Thợ TỪ CHỐI đơn thường CHƯA NHẬN (Pending): đơn hủy + hoàn 100% cho khách, thợ KHÔNG bị
-        //    ghi nhận lần hủy nào. Tách hẳn khỏi /cancel (thợ bỏ đơn ĐÃ NHẬN, có phạt độ tin cậy) —
-        //    trước đây app thợ gọi /cancel cho cả hai nên nút "Từ chối" luôn trả 400.
         [HttpPut("{id:long}/decline")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> DeclineBooking(
@@ -177,7 +163,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
                 return Unauthorized();
 
-            // 🔒 CHỐNG ID-SPOOFING: đè ID từ route + token, bỏ qua giá trị client gửi lên.
             var securedCommand = command with { BookingId = id, TaskerId = taskerId };
 
             var result = await _mediator.Send(securedCommand);
@@ -189,14 +174,12 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> CancelBooking([FromRoute] long id, [FromBody] CancelBookingCommand command)
         {
-            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
             {
                 return Unauthorized();
             }
 
-            // 🔒 CHỐNG ID-SPOOFING: Đè chặt ID an toàn từ Route URL và Token người thực hiện vào Record Command
             var securedCommand = command with
             {
                 BookingId = id,

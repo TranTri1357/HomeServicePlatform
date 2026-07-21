@@ -23,7 +23,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Queries.GetAllTas
                 .AsNoTracking()
                 .Where(t => !t.IsDeleted);
 
-            // Lọc theo trạng thái (Ví dụ: 0: Chờ duyệt, 1: Hoạt động, 2: Bị khóa)
             if (request.Status.HasValue)
                 query = query.Where(t => t.Status == request.Status.Value);
 

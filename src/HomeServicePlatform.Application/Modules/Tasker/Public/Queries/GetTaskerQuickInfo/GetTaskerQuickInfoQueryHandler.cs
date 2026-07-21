@@ -41,9 +41,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
                                  .Select(ts => ts.Service.Name)
                                  .FirstOrDefault(),
 
-                    // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: EF không dịch
-                    //    được method tự viết trong Select). Giá hiện ở đây PHẢI khớp giá
-                    //    CreateBooking tính, nếu không khách sẽ thấy một đằng bị tính một nẻo.
                     CurrentPrice = t.TaskerServicePrices
                                     .Where(p => p.ServiceId == request.ServiceId
                                                 && p.EffectiveFrom <= now

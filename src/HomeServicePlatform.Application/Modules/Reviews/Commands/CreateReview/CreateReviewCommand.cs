@@ -11,10 +11,10 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Commands.CreateReview
 {
     public class CreateReviewCommand : IRequest<ApiResponse<long>>
     {
-        [JsonIgnore] // Ẩn khỏi Swagger Body, lấy từ URL route
+        [JsonIgnore]
         public long BookingItemId { get; set; }
 
-        [JsonIgnore] // Ẩn khỏi Swagger Body, lấy từ Token
+        [JsonIgnore]
         public long CustomerId { get; set; }
 
         public short Rating { get; set; }

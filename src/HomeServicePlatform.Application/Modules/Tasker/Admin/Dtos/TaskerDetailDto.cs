@@ -17,14 +17,14 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Dtos
         bool IsVerified,
         DateTimeOffset? VerifiedAt,
 
-        string? VerificationImageUrl, // Ảnh giấy tờ để admin đối chiếu trước khi duyệt
-        string? RejectionReason,      // Lý do lần từ chối gần nhất (null nếu chưa từng bị từ chối)
+        string? VerificationImageUrl,
+        string? RejectionReason,
 
         decimal RatingAvg,
         int TotalReviews,
 
-        short TaskerStatus, // Trạng thái làm nghề (0: Chờ duyệt, 1: Hoạt động, 2: Bị khóa)
-        short UserStatus,   // Trạng thái tài khoản gốc (1: Hoạt động, 0: Khóa đăng nhập)
+        short TaskerStatus,
+        short UserStatus,
 
         DateTimeOffset JoinedDate,
 

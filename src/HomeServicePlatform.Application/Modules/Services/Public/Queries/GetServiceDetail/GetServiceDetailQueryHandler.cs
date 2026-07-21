@@ -36,7 +36,6 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                     DurationMinutes = s.DurationMinutes,
                     TotalBookings = s.BookingItems.Count(),
 
-                    // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: giới hạn EF trong Select).
                     StartingPrice = s.TaskerServicePrices
                         .Where(p => p.EffectiveFrom <= now && (p.EffectiveTo == null || p.EffectiveTo > now))
                         .Min(p => (decimal?)p.Price) ?? 0,
@@ -55,7 +54,6 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                             RatingAvg = ts.TaskerProfile.RatingAvg,
                             AvatarUrl = null,
 
-                            // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: giới hạn EF trong Select).
                             CurrentPrice = ts.TaskerProfile.TaskerServicePrices
                                 .Where(p => p.ServiceId == s.ServiceId
                                             && p.EffectiveFrom <= now

@@ -28,7 +28,6 @@ namespace HomeServicePlatform.Application.Modules.Categories.Queries.GetActiveCa
                 .Where(c => c.IsActive == true && !c.IsDeleted)
                 .OrderBy(c => c.CategoryId);
 
-            // Cắt dữ liệu nếu có giới hạn
             if (request.Limit.HasValue)
             {
                 query = query.Take(request.Limit.Value);

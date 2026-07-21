@@ -13,7 +13,6 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Commands.UpdateCom
         long? ServiceId,         
         long? TaskerId,
         decimal CommissionRate,
-        //DateTimeOffset EffectiveFrom,
         DateTimeOffset? EffectiveTo
     ) : IRequest<ApiResponse<bool>>;
 }

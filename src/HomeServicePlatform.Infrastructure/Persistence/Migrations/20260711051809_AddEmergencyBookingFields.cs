@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class AddEmergencyBookingFields : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<DateTimeOffset>(
@@ -25,7 +23,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 defaultValue: false);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(

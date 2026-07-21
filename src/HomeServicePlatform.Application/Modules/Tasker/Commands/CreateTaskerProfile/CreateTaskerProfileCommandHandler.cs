@@ -30,13 +30,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.CreateTaskerPr
                             .FirstOrDefaultAsync(t => t.TaskerProfileId == request.UserId, ct);
 
             var geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
-            // Validator đã bảo đảm Latitude/Longitude không null tới được đây.
             var currentLocation = geometryFactory.CreatePoint(new Coordinate(request.Longitude!.Value, request.Latitude!.Value));
 
-            // Hồ sơ đã bị admin TỪ CHỐI (Status=4) thì cho nộp lại: cập nhật nội dung mới và
-            // đưa về hàng chờ duyệt. Không có nhánh này thì thợ bị từ chối sẽ kẹt vĩnh viễn.
-            // CHỈ Status=4 mới được nộp lại — Status=2 (bị khóa) KHÔNG, để thợ bị khóa không
-            // thể tự thoát trạng thái phạt bằng cách gọi lại API này.
             if (existingProfile != null)
             {
                 if (existingProfile.Status != 4)
@@ -69,10 +64,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.CreateTaskerPr
 
             _context.TaskerProfiles.Add(newProfile);
 
-            // 🗓️ Cấp lịch làm việc MẶC ĐỊNH (T2–T7, 8h–18h) ngay lúc tạo hồ sơ.
-            //    Hệ thống chặn đặt lịch ngoài giờ làm việc, nên hồ sơ không có dòng lịch nào
-            //    đồng nghĩa KHÔNG AI ĐẶT ĐƯỢC — thợ mới sẽ mãi không có đơn mà không hiểu vì sao.
-            //    Xem DefaultWorkingSchedule để biết đầy đủ lý do.
             foreach (var schedule in DefaultWorkingSchedule.For(newProfile.TaskerProfileId))
                 _context.TaskerSchedules.Add(schedule);
 

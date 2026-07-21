@@ -18,7 +18,6 @@ namespace HomeServicePlatform.Infrastructure.Identity
             _httpContextAccessor = httpContextAccessor;
         }
 
-        // Đọc Claim dạng NameIdentifier (đã lưu UserId lúc Login) và ép kiểu sang long
         public long? UserId
         {
             get
@@ -30,7 +29,6 @@ namespace HomeServicePlatform.Infrastructure.Identity
 
         public string? Email => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Email);
 
-        // Gom tất cả các claim có type là "role" hoặc ClaimTypes.Role vào danh sách
         public List<string> Roles
         {
             get

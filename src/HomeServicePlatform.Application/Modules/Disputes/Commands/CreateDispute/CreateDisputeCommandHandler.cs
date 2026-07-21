@@ -32,7 +32,6 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.CreateDisput
             if (booking.CustomerId != request.CustomerId)
                 throw new ForbiddenException("Bạn không có quyền thực hiện thao tác trên đơn hàng này.");
 
-            // Kiểm tra xem đơn hàng này đã có khiếu nại nào đang chờ xử lý chưa
             var existingDispute = await _context.Disputes
                 .AnyAsync(d => d.BookingId == request.BookingId && d.Status == 0, ct);
 
@@ -44,7 +43,7 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.CreateDisput
                 BookingId = request.BookingId,
                 RaisedById = request.CustomerId,
                 Reason = request.Reason.Trim(),
-                Status = 0 // Pending
+                Status = 0
             };
 
             _context.Disputes.Add(dispute);

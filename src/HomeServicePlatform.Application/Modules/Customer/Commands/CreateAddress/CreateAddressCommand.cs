@@ -4,7 +4,6 @@ using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Customer.Commands.CreateAddress
 {
-    /// <summary>Thêm một địa chỉ mới cho khách hàng. CustomerId lấy từ Token.</summary>
     public class CreateAddressCommand : IRequest<ApiResponse<long>>
     {
         [JsonIgnore]

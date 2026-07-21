@@ -44,11 +44,6 @@ namespace HomeServicePlatform.Infrastructure.Identity
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        /// <summary>
-        /// Đọc JwtSettings:ExpiryMinutes an toàn: parse theo InvariantCulture (tránh lệ thuộc
-        /// locale máy chủ khi giá trị có phần thập phân) và lùi về mặc định 15 phút nếu thiếu
-        /// hoặc sai định dạng — thà token ngắn còn hơn hỏng toàn bộ luồng đăng nhập.
-        /// </summary>
         private double ResolveExpiryMinutes()
         {
             const double defaultMinutes = 15;

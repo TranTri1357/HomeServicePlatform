@@ -12,7 +12,7 @@ namespace HomeServicePlatform.Application.Modules.Customer.Queries.GetCustomerPr
         string Phone,
         string Email,
         string DefaultAddress,
-        int TotalBookingsCount,     // Số đơn đã đặt
-        int CompletedBookingsCount  // Số đơn đã hoàn thành (Status = 2 hoặc tùy theo cấu hình DB của bạn)
+        int TotalBookingsCount,
+        int CompletedBookingsCount
     );
 }

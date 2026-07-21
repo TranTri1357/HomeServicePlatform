@@ -51,9 +51,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
                 .Select(t => new { t.StartAt, t.EndAt })
                 .ToListAsync(ct);
 
-            // Đơn "chiếm chỗ": điều kiện dùng chung ở BookingSlotOccupancy để luôn khớp với ràng
-            // buộc chống đè lịch của CSDL (đơn đã Hoàn thành/Hoàn tiền vẫn chiếm khung giờ).
-            // Lấy kèm TỌA ĐỘ địa điểm của từng đơn (qua BookingAddress.Geom) để tính buffer di chuyển.
             var busy = await _context.BookingItems.AsNoTracking()
                 .Where(b => b.TaskerId == request.TaskerId
                             && b.StartAt < endOfDayUtc && b.EndAt > startOfDayUtc)
@@ -66,8 +63,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
                 })
                 .ToListAsync(ct);
 
-            // Với mỗi đơn bận, tính buffer (phút) từ địa điểm đơn đó tới ĐÍCH của đơn sắp đặt.
-            // Không có tọa độ đích ⇒ không trừ buffer (giữ hành vi cũ, để backend chặn khi tạo đơn).
             bool hasDest = request.Lat.HasValue && request.Lng.HasValue;
             var busyPadded = busy
                 .Select(b =>

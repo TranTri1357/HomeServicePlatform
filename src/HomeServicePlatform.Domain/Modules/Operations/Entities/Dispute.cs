@@ -14,7 +14,6 @@ namespace HomeServicePlatform.Domain.Modules.Operations.Entities
         public long BookingId { get; set; }
         public long RaisedById { get; set; }
         public string Reason { get; set; } = null!;
-        // 0: Chờ admin xử lý · 1: Đã hoàn tiền (admin chấp nhận) · 2: Khiếu nại bị từ chối
         public short Status { get; set; } = 0;
         public string? ResolutionNote { get; set; }
         public decimal? RefundAmount { get; set; } = 0;

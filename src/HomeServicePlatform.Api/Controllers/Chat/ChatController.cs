@@ -13,7 +13,7 @@ namespace HomeServicePlatform.Api.Controllers.Chat
 {
     [ApiController]
     [Route("api/chat")]
-    [Authorize] // Cả Khách và Thợ đều dùng chung; quyền tham gia kiểm tra ở handler
+    [Authorize]
     public class ChatController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -48,11 +48,10 @@ namespace HomeServicePlatform.Api.Controllers.Chat
             if (!TryGetUserId(out var userId)) return Unauthorized();
 
             command.BookingId = bookingId;
-            command.SenderId = userId; // 🔒 Ép từ Token
+            command.SenderId = userId;
 
             var result = await _mediator.Send(command);
 
-            // Bắn realtime cho những ai đang mở hội thoại của đơn này.
             if (result.Succeeded && result.Data != null)
             {
                 await _hub.Clients.Group(ChatHub.GroupName(bookingId))

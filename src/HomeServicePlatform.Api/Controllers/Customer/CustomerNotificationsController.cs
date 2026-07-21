@@ -20,7 +20,6 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             _mediator = mediator;
         }
 
-        // Dùng lại query/command thông báo chung (đánh theo UserId, không phụ thuộc vai trò).
         private bool TryGetUserId(out long userId)
         {
             userId = 0;

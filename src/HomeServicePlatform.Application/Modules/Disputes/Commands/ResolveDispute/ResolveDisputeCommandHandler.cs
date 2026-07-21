@@ -39,56 +39,36 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                     using var transaction = await efContext.Database.BeginTransactionAsync(ct);
                     try
                     {
-                        // 1. Tìm bản ghi tranh chấp cần can thiệp
                         var dispute = await _context.Disputes
                             .FirstOrDefaultAsync(x => x.DisputeId == request.DisputeId, ct);
 
                         if (dispute == null) throw new NotFoundException($"Không tìm thấy ca tranh chấp số #{request.DisputeId}");
 
-                        // 2. 🛡️ BẢO MẬT: Đóng dấu theo dõi RowVersion chuẩn native để ngăn chặn xung đột ghi đè
                         efContext.Entry(dispute).Property(x => x.RowVersion).OriginalValue = request.CurrentRowVersion;
 
-                        // Chặn nếu ca này đã được giải quyết xong từ trước rồi
                         if (dispute.Status == 1 || dispute.Status == 2)
                         {
                             return ApiResponse<bool>.Success(true, "Ca tranh chấp khiếu nại này đã được xử lý kết toán từ trước.");
                         }
 
-                        // 3. Cập nhật phán quyết của Admin
                         dispute.Status = request.NewStatus;
                         dispute.ResolutionNote = request.ResolutionNote.Trim();
                         dispute.ResolvedAt = now;
                         dispute.UpdatedAt = now;
-                        dispute.RowVersion += 1; // Tăng cờ bảo vệ phiên tiếp theo
+                        dispute.RowVersion += 1;
 
-                        // 4. 🟢 ĐỒNG BỘ DOANH NGHIỆP: Tự động điều chỉnh trạng thái đơn hàng (Booking)
                         var booking = await _context.Bookings
-                            .Include(b => b.BookingItems) // RefundExecutor cần để xác định thợ đảm nhận đơn
+                            .Include(b => b.BookingItems)
                             .FirstOrDefaultAsync(b => b.BookingId == dispute.BookingId, ct);
 
                         if (booking != null)
                         {
-                            // Kết quả phán quyết hiện thẳng trên trạng thái đơn để khách tự thấy:
-                            //   • Chấp nhận (1) -> "Đã hoàn tiền"        (tiền đã vào ví ở bước 4b)
-                            //   • Từ chối   (2) -> "Khiếu nại bị từ chối"
-                            // Trước đây nhánh từ chối ép đơn về Completed, vừa không cho khách biết
-                            // kết quả, vừa có thể "hồi sinh" nhầm một đơn đã hủy.
                             booking.Status = request.NewStatus == 1
                                 ? BookingStatus.Refund
                                 : BookingStatus.DisputeRejected;
                             booking.UpdatedAt = now;
                         }
 
-                        // 4b. 💸 BỒI THƯỜNG THEO PHÁN QUYẾT: sàn tự chi từ ví DOANH THU.
-                        //
-                        //     Trước đây khối này tự cộng thẳng `wallet.Balance += refundAmount` mà
-                        //     KHÔNG có vế ghi nợ nào -> tiền sinh ra từ hư không, phá bất biến đối
-                        //     soát Σ(mọi ví) = tổng nạp − tổng rút. Nay là bút toán HAI VẾ: ghi nợ
-                        //     ví doanh thu, ghi có ví người khiếu nại.
-                        //
-                        //     Khác với luồng hủy đơn (RefundExecutor giải phóng tiền đang giữ ở ví
-                        //     ký quỹ), đây là khoản sàn CHỦ ĐỘNG đền theo phán quyết của admin nên
-                        //     luôn lấy từ ví doanh thu, không phụ thuộc đơn đã thu được bao nhiêu.
                         decimal requestedRefund = request.RefundAmount ?? 0m;
                         decimal actualRefunded = 0m;
 
@@ -100,8 +80,6 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                                     "Không tìm thấy đơn của ca khiếu nại nên không xác định được mức trần bồi thường.");
                             }
 
-                            // 🚧 TRẦN BỒI THƯỜNG = tổng giá trị đơn. Báo lỗi thay vì âm thầm cắt bớt,
-                            //    để admin biết chính xác con số vừa nhập là không hợp lệ.
                             if (requestedRefund > booking.FinalAmount)
                             {
                                 throw new BadRequestException(
@@ -114,8 +92,6 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                                 new[] { dispute.RaisedById, SystemAccounts.RevenueUserId },
                                 ct);
 
-                            // Vế ghi NỢ — sàn chi từ ví doanh thu. Thiếu số dư thì Debit ném lỗi,
-                            // tuyệt đối không để quỹ âm.
                             WalletLedger.Debit(
                                 wallets[SystemAccounts.RevenueUserId],
                                 WalletTransactionType.EscrowOut,
@@ -125,8 +101,6 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                                 note: $"Bồi thường khiếu nại đơn BK{dispute.BookingId}",
                                 insufficientMessage: "Ví doanh thu của sàn không đủ số dư để chi khoản bồi thường này.");
 
-                            // Vế ghi CÓ — người khiếu nại. Khách thì là hoàn tiền; thợ thì là bồi
-                            // thường, nên ghi loại Adjustment để lịch sử ví đọc đúng bản chất.
                             var raisedByCustomer = dispute.RaisedById == booking.CustomerId;
 
                             WalletLedger.Credit(
@@ -140,12 +114,8 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                             actualRefunded = requestedRefund;
                         }
 
-                        // Ghi nhận số tiền THỰC TẾ đã chuyển (0 nếu đóng ca mà không bồi thường).
                         dispute.RefundAmount = actualRefunded;
 
-                        // 4c. 🔔 Báo kết quả cho NGƯỜI GỬI khiếu nại — trước đây họ phải tự vào xem.
-                        //     Chỉ gửi cho người khiếu nại: khoản bồi thường lấy từ ví doanh thu của
-                        //     sàn nên thợ không bị ảnh hưởng tiền bạc, không cần làm phiền.
                         _context.Notifications.Add(request.NewStatus == 1
                             ? NotificationBuilder.Build(
                                 dispute.RaisedById,
@@ -161,7 +131,6 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispu
                                 "Khiếu nại bị từ chối",
                                 $"Khiếu nại đơn BK{dispute.BookingId} không được chấp nhận. Lý do: {dispute.ResolutionNote}"));
 
-                        // 5. Chốt gộp câu lệnh
                         await _context.SaveChangesAsync(ct);
                         await transaction.CommitAsync(ct);
 

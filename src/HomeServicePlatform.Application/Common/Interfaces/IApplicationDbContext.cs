@@ -16,7 +16,6 @@ namespace HomeServicePlatform.Application.Common.Interfaces
 {
     public interface IApplicationDbContext
     {
-        // Khai báo các bảng dữ liệu bạn cần dùng ở tầng Application
         DbSet<User> Users { get; set; }
         DbSet<Role> Roles { get; set; }
         DbSet<UserRole> UserRoles { get; set; }
@@ -44,29 +43,12 @@ namespace HomeServicePlatform.Application.Common.Interfaces
         DbSet<Dispute> Disputes { get; set; }
         DbSet<Message> Messages { get; set; }
 
-        // Bắt buộc phải có hàm này để luồng Query có thể gọi CancellationToken nếu cần
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Vứt bỏ mọi thực thể đang được theo dõi, trả DbContext về trạng thái sạch. Dành cho
-        /// <c>ConcurrencyRetryBehavior</c>: một lệnh bị đụng độ đồng thời phải chạy lại trên dữ
-        /// liệu ĐỌC MỚI, không được dùng lại bản ghi cũ đã lỗi thời.
-        /// </summary>
         void ResetTrackedChanges();
 
-        /// <summary>
-        /// Giữ advisory lock theo thợ (pg_advisory_xact_lock) trong transaction hiện tại — dùng để
-        /// tuần tự hóa việc đặt lịch của cùng một thợ, chống double-booking khi có nhiều request đồng thời.
-        /// Khóa tự nhả khi transaction kết thúc (commit/rollback). Phải gọi bên trong một transaction.
-        /// </summary>
         Task AcquireTaskerScheduleLockAsync(long taskerId, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Giữ advisory lock theo ĐƠN (pg_advisory_xact_lock) trong transaction hiện tại — tuần tự hóa
-        /// việc "giành" một đơn khẩn cấp broadcast: nhiều thợ cùng bấm nhận thì chỉ thợ vào lock trước
-        /// mới thấy đơn còn Pending và thắng, các thợ sau thấy đơn đã Accepted. Khóa tự nhả khi
-        /// transaction kết thúc. Phải gọi bên trong một transaction.
-        /// </summary>
         Task AcquireBookingClaimLockAsync(long bookingId, CancellationToken cancellationToken = default);
     }
 }

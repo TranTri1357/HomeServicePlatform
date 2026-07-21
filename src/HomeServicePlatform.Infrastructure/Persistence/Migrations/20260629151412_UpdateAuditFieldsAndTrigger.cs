@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class UpdateAuditFieldsAndTrigger : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<DateTimeOffset>(
@@ -90,7 +88,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 type: "timestamp with time zone",
                 nullable: true);
 
-            // Bổ sung code cập nhật Trigger an toàn (Bọc lỗi try-catch)
             migrationBuilder.Sql(@"
                 CREATE OR REPLACE FUNCTION update_modified_and_version() 
                 RETURNS TRIGGER AS $$ 
@@ -114,7 +111,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
             ");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
@@ -195,7 +191,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 oldNullable: true,
                 oldDefaultValueSql: "CURRENT_TIMESTAMP");
 
-            // Khôi phục lại Trigger bản gốc (bản không bọc lỗi ở file InitialCreate)
             migrationBuilder.Sql(@"
                 CREATE OR REPLACE FUNCTION update_modified_and_version() 
                 RETURNS TRIGGER AS $$ 

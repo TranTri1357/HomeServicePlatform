@@ -15,7 +15,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
 {
     [ApiController]
     [Route("api/tasker/tasker-jobs")]
-    [Authorize(Roles = "Tasker")] // 🛡️ BẢO MẬT: Chỉ cho phép tài khoản Thợ (Tasker) truy cập danh sách việc làm
+    [Authorize(Roles = "Tasker")]
     public class TaskerJobController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -25,30 +25,21 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             _mediator = mediator;
         }
 
-        /// <summary>
-        /// API Lấy danh sách việc làm (Jobs) của Thợ đang đăng nhập, hỗ trợ lọc theo trạng thái số ngắn (status)
-        /// </summary>
-        [HttpGet] // 🟢 Gỡ bỏ hoàn toàn bẫy lộ tham số "{taskerId:long}" trên URL
+        [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<List<TaskerJobDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetJobsByTasker([FromQuery] short? status)
         {
-            // 🛡️ Tự động bóc tách ID của Thợ từ chuỗi mã Token ngầm
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long taskerId))
             {
-                return Unauthorized(); // 🟢 Áp dụng Cách B tinh gọn, an toàn tuyệt đối
+                return Unauthorized();
             }
 
-            // Gửi dữ liệu qua MediatR với taskerId bóc ngầm từ Token kết hợp filter status từ Query String (?status=X)
             var result = await _mediator.Send(new GetTaskerJobsQuery(taskerId, status));
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Danh sách việc GỘP THEO ĐƠN + LỌC (?status=1&status=2...) + TÌM (?search=) + PHÂN TRANG.
-        /// Thay cho endpoint tải toàn bộ ở trên (dùng cho trang Quản lý công việc).
-        /// </summary>
         [HttpGet("paged")]
         [ProducesResponseType(typeof(ApiResponse<PagedResult<TaskerJobGroupDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -71,7 +62,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Đếm số đơn theo nhóm trạng thái (badge + số trên mỗi tab).</summary>
         [HttpGet("stats")]
         [ProducesResponseType(typeof(ApiResponse<TaskerJobStatsDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

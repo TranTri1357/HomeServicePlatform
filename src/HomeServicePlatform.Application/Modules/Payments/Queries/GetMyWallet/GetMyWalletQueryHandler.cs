@@ -25,11 +25,9 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetMyWallet
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.UserId == request.CustomerId, ct);
 
-            // Chưa có ví thì coi như số dư 0 (ví sẽ được tạo khi nạp lần đầu).
             if (wallet == null)
                 return ApiResponse<WalletDto>.Success(new WalletDto(), "Khách hàng chưa có ví, số dư 0.");
 
-            // Lấy dữ liệu thô rồi dựng mô tả trong bộ nhớ (string nội suy không dịch được sang SQL).
             var raw = await _context.WalletTransactions
                 .AsNoTracking()
                 .Where(t => t.WalletId == wallet.WalletId)
@@ -68,8 +66,6 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetMyWallet
             return ApiResponse<WalletDto>.Success(dto, "Lấy thông tin ví thành công.");
         }
 
-        // Mô tả rõ lý do biến động số dư ví khách + số đơn liên quan (nếu có).
-        // Ưu tiên Note đã ghi lúc tạo giao dịch vì nó cụ thể hơn (vd "Nạp qua MoMo").
         private static string BuildDescription(short type, long? bookingId, string? note)
         {
             if (!string.IsNullOrWhiteSpace(note)) return note;

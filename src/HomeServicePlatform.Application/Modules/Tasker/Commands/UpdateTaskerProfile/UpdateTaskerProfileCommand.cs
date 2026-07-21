@@ -4,10 +4,6 @@ using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Tasker.Commands.UpdateTaskerProfile
 {
-    /// <summary>
-    /// Thợ tự cập nhật thông tin tài khoản: họ tên, SĐT (bảng Users) và
-    /// giới thiệu, số năm kinh nghiệm (bảng TaskerProfiles). UserId lấy từ Token.
-    /// </summary>
     public class UpdateTaskerProfileCommand : IRequest<ApiResponse<bool>>
     {
         [JsonIgnore]

@@ -20,32 +20,28 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.AddTaskerServi
 
         public async Task<ApiResponse<bool>> Handle(AddTaskerServiceCommand request, CancellationToken cancellationToken)
         {
-            // 1. Kiểm tra xem thợ đã đăng ký dịch vụ này từ trước chưa
             var exists = await _context.TaskerServices
                 .AnyAsync(ts => ts.TaskerId == request.TaskerId && ts.ServiceId == request.ServiceId, cancellationToken);
 
             if (exists) throw new BadRequestException("Thợ đã đăng ký gói dịch vụ này từ trước.");
 
-            // 2. Khởi tạo đối tượng map dữ liệu mới
-            // 2. Khởi tạo đối tượng map quan hệ Many-to-Many (Chỉ chứa 2 ID theo đúng DB)
             var taskerService = new TaskerService
             {
                 TaskerId = request.TaskerId,
                 ServiceId = request.ServiceId
             };
 
-            // 3. Khởi tạo bản ghi giá đi kèm vào bảng tasker_service_prices
             var taskerServicePrice = new TaskerServicePrice
             {
                 TaskerId = request.TaskerId,
                 ServiceId = request.ServiceId,
                 Price = request.Price,
                 EffectiveFrom = DateTimeOffset.UtcNow,
-                EffectiveTo = null // Giá hiện tại đang có hiệu lực
+                EffectiveTo = null
             };
 
             _context.TaskerServices.Add(taskerService);
-            _context.TaskerServicePrices.Add(taskerServicePrice); // Giả định interface đã có DbSet<TaskerServicePrice>
+            _context.TaskerServicePrices.Add(taskerServicePrice);
 
             await _context.SaveChangesAsync(cancellationToken);
 

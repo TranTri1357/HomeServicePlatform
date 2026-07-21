@@ -47,7 +47,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.RebroadcastEm
             if (booking.BookingAddress?.Geom == null)
                 throw new BadRequestException("Đơn khẩn thiếu tọa độ, không thể quét thợ.");
 
-            // Gia hạn cửa sổ phản hồi cho vòng mới.
             var nowUtc = DateTimeOffset.UtcNow;
             booking.EmergencyExpiresAt = nowUtc.Add(ResponseWindow);
             booking.UpdatedAt = nowUtc;
@@ -63,9 +62,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.RebroadcastEm
             var lat = booking.BookingAddress.Geom.Y;
             var lng = booking.BookingAddress.Geom.X;
 
-            // Thợ đã CHỦ ĐỘNG bấm "Từ chối" ở vòng trước thì không mời lại — vòng sau bán kính rộng
-            // hơn nên tập thợ là tập cha, không lọc thì họ bị dựng dậy lại cho cùng một đơn.
-            // Thợ hết 30s không phản hồi (WasTimeout) VẪN được mời lại: có thể lúc đó họ đang bận tay.
             var declinedTaskerIds = await _context.EmergencyBookingDeclines
                 .AsNoTracking()
                 .Where(d => d.BookingId == booking.BookingId && !d.WasTimeout)

@@ -29,7 +29,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return long.TryParse(claim, out taskerId);
         }
 
-        /// <summary>Thống kê trang chủ của thợ đang đăng nhập.</summary>
         [HttpGet("dashboard")]
         [ProducesResponseType(typeof(ApiResponse<TaskerDashboardDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -41,7 +40,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Bật/tắt trạng thái nhận việc.</summary>
         [HttpPut("availability")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -50,7 +48,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             if (command == null) return BadRequest("Dữ liệu không hợp lệ.");
             if (!TryGetTaskerId(out var taskerId)) return Unauthorized();
 
-            command.TaskerId = taskerId; // 🔒 Ép từ Token
+            command.TaskerId = taskerId;
             var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }

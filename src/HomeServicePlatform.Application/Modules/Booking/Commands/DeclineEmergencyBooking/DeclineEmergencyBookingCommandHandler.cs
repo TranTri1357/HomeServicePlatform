@@ -34,9 +34,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclineEmerge
             if (!booking.IsEmergency)
                 throw new BadRequestException("Đây không phải đơn khẩn cấp.");
 
-            // Đơn đã có thợ khác nhận / đã hủy / đã hết hạn: đây là RACE BÌNH THƯỜNG (thợ bấm từ chối
-            // đúng lúc người khác vừa nhận), không phải lỗi của thợ này. Trả no-op để client đóng modal
-            // êm thay vì hiện thông báo lỗi đỏ.
             if (booking.Status != BookingStatus.Pending)
                 return ApiResponse<bool>.Success(true, "Đơn khẩn đã kết thúc.");
 
@@ -59,16 +56,12 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclineEmerge
             }
             catch (DbUpdateException ex) when (IsUniqueViolation(ex))
             {
-                // Hai request cùng lúc (bấm từ chối đúng giây hết giờ) — unique index đã chặn bản ghi
-                // thừa, đúng như mong muốn. Không phải lỗi.
                 return ApiResponse<bool>.Success(true, "Đã ghi nhận trước đó.");
             }
 
             return ApiResponse<bool>.Success(true, "Đã bỏ qua đơn khẩn cấp.");
         }
 
-        // Postgres unique_violation = SQLSTATE 23505 (cùng lối nhận diện với IsExclusionViolation
-        // trong AcceptBookingCommandHandler, tránh phụ thuộc cứng vào kiểu của Npgsql).
         private static bool IsUniqueViolation(Exception ex)
         {
             for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)

@@ -30,19 +30,18 @@ namespace HomeServicePlatform.Api.Middlewares
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(context, ex); // Nếu có lỗi ở bất kỳ đâu, nhảy vào đây bắt lại
+                await HandleExceptionAsync(context, ex);
             }
         }
 
         private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";
-            var statusCode = HttpStatusCode.InternalServerError; // Mặc định là lỗi 500
+            var statusCode = HttpStatusCode.InternalServerError;
             var apiResponse = new ApiResponse<object> { Succeeded = false };
 
             switch (exception)
             {
-                // 1. Nếu là lỗi dữ liệu đầu vào (Do cái ValidationBehavior ném ra)
                 case ValidationException valEx:
                 statusCode = HttpStatusCode.BadRequest;
                 apiResponse.StatusCode = (int)statusCode;
@@ -50,40 +49,34 @@ namespace HomeServicePlatform.Api.Middlewares
                 apiResponse.Errors = valEx.Errors.Select(e => e.ErrorMessage).ToList();
                 break;
 
-                // 2. Nếu là lỗi không tìm thấy dữ liệu
                 case NotFoundException notFoundEx:
                 statusCode = HttpStatusCode.NotFound;
                 apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = notFoundEx.Message;
                 break;
 
-                // 3. Nếu là lỗi yêu cầu sai nghiệp vụ
                 case BadRequestException badReqEx:
                 statusCode = HttpStatusCode.BadRequest;
                 apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = badReqEx.Message;
                 break;
 
-                //Bắt lỗi 401 Unauthorized
                 case UnauthorizedException unauthorizedEx:
                 statusCode = HttpStatusCode.Unauthorized;
                 apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = unauthorizedEx.Message;
                 break;
 
-                //Bắt lỗi 403 Forbidden
                 case ForbiddenException forbiddenEx:
                 statusCode = HttpStatusCode.Forbidden;
                 apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = forbiddenEx.Message;
                 break;
 
-                // 4. Các lỗi hệ thống không lường trước được (Lỗi sập nguồn, NullReference...)
                 default:
                 statusCode = HttpStatusCode.InternalServerError;
                 apiResponse.StatusCode = (int)statusCode;
                 apiResponse.Message = "Đã xảy ra lỗi hệ thống nghiêm trọng. Vui lòng thử lại sau.";
-                // 🔒 Luôn log đầy đủ ở server; CHỈ lộ chi tiết lỗi cho client khi chạy Development.
                 _logger.LogError(exception, "Lỗi hệ thống không xử lý được.");
                 if (_env.IsDevelopment())
                     apiResponse.Errors = new List<string> { exception.Message };

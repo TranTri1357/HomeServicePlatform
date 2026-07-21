@@ -22,7 +22,6 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             _mediator = mediator;
         }
 
-        // Bóc tách CustomerId từ Token; trả về false nếu không hợp lệ.
         private bool TryGetCustomerId(out long customerId)
         {
             customerId = 0;
@@ -46,7 +45,7 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             if (command == null) return BadRequest("Dữ liệu địa chỉ không được để trống.");
             if (!TryGetCustomerId(out var customerId)) return Unauthorized();
 
-            command.CustomerId = customerId; // 🔒 Ép từ Token
+            command.CustomerId = customerId;
             var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }
@@ -58,7 +57,7 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             if (!TryGetCustomerId(out var customerId)) return Unauthorized();
 
             command.AddressId = id;
-            command.CustomerId = customerId; // 🔒 Ép từ Token
+            command.CustomerId = customerId;
             var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }

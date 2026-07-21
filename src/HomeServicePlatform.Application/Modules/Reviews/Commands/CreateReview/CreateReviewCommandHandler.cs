@@ -64,10 +64,6 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Commands.CreateReview
 
             _context.Reviews.Add(review);
 
-            // Tính lại điểm TB + số đánh giá của thợ TỪ NGUỒN (bảng reviews) thay vì cộng
-            // dồn — nhất quán với DeleteReview và tự chữa lành nếu có review lệch/ngoài luồng.
-            // Review vừa thêm ở trên chưa được lưu nên chưa xuất hiện trong truy vấn DB →
-            // cộng thủ công đánh giá mới vào tổng.
             var existingRatings = await _context.Reviews
                 .Where(r => r.TaskerId == bookingItem.TaskerId.Value && !r.IsDeleted)
                 .Select(r => (int)r.Rating)
@@ -78,7 +74,6 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Commands.CreateReview
             bookingItem.TaskerProfile.RatingAvg =
                 Math.Round((decimal)(existingRatings.Sum() + request.Rating) / totalReviews, 1);
 
-            // 🔔 Thông báo cho thợ: có đánh giá mới từ khách.
             _context.Notifications.Add(Application.Common.Helpers.NotificationBuilder.Build(
                 bookingItem.TaskerId.Value,
                 Domain.Modules.Operations.Enum.NotificationType.NewReview,

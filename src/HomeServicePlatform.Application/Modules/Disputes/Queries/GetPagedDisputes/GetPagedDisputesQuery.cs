@@ -20,11 +20,11 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Queries.GetPagedDispu
         decimal? RefundAmount,
         DateTimeOffset? ResolvedAt,
         DateTimeOffset CreatedAt,
-        int RowVersion // Trả về để Frontend giữ làm cờ khi gọi lệnh Resolve
+        int RowVersion
     );
 
     public record GetPagedDisputesQuery(
-        short? Status, // Lọc trạng thái (0: Chờ xử lý, 1: Đã hoàn tiền, 2: Khiếu nại bị từ chối)
+        short? Status,
         int PageIndex = 1,
         int PageSize = 10
     ) : IRequest<ApiResponse<PagedResult<DisputeLookupDto>>>;

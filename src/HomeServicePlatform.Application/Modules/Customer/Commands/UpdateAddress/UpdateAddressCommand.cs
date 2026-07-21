@@ -4,7 +4,6 @@ using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Customer.Commands.UpdateAddress
 {
-    /// <summary>Sửa một địa chỉ đã lưu. AddressId từ route, CustomerId từ Token.</summary>
     public class UpdateAddressCommand : IRequest<ApiResponse<bool>>
     {
         [JsonIgnore]

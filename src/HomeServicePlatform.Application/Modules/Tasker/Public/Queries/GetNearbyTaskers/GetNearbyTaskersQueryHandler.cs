@@ -24,12 +24,9 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearb
 
         public async Task<ApiResponse<List<NearbyTaskerDto>>> Handle(GetNearbyTaskersQuery request, CancellationToken ct)
         {
-            // Khởi tạo Factory tọa độ chuẩn GPS (SRID 4326)
             var geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             var customerLocation = geometryFactory.CreatePoint(new Coordinate(request.CustomerLng, request.CustomerLat));
 
-            // độ kinh tuyến/vĩ tuyến xấp xỉ 111.12 km tại xích đạo
-            // Đổi RadiusKm sang đơn vị Độ (Degrees) để PostGIS tính toán nội bộ
             double radiusInDegrees = request.RadiusKm / 111.12;
 
             var nearbyTaskers = await _context.TaskerProfiles
@@ -37,7 +34,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearb
                 .Where(t =>
                     !t.IsDeleted &&
                     t.CurrentGeom != null &&
-                    t.Status == 1 && // chỉ thợ đang nhận việc; loại thợ bị khóa(2)/tạm nghỉ(3)/từ chối(4)/chờ duyệt(0)
+                    t.Status == 1 &&
                     t.TaskerServices.Any(ts => ts.ServiceId == request.ServiceId) &&
                     t.CurrentGeom.Distance(customerLocation) <= radiusInDegrees)
                 .Select(t => new NearbyTaskerDto
@@ -49,7 +46,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearb
                     Status = t.Status,
                     RatingAvg = t.RatingAvg,
 
-                    // Tính khoảng cách trả về cho FE hiển thị (nhân lại với 111.12 để ra Km)
                     DistanceKm = Math.Round(t.CurrentGeom.Distance(customerLocation) * 111.12, 1)
                 })
                 .ToListAsync(ct);

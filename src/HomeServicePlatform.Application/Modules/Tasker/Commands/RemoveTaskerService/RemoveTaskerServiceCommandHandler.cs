@@ -20,7 +20,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.RemoveTaskerSe
 
         public async Task<ApiResponse<bool>> Handle(RemoveTaskerServiceCommand request, CancellationToken cancellationToken)
         {
-            // 1. Tìm và xóa mối quan hệ Many-to-Many ở bảng trung gian gốc
             var taskerService = await _context.TaskerServices
                 .FirstOrDefaultAsync(ts => ts.TaskerId == request.TaskerId && ts.ServiceId == request.ServiceId, cancellationToken);
 
@@ -29,8 +28,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.RemoveTaskerSe
 
             _context.TaskerServices.Remove(taskerService);
 
-            // 2. Tìm dòng giá đang hoạt động và cập nhật ngày đóng hiệu lực (EffectiveTo) thành thời điểm hiện tại
-            // 💰 Dùng chung định nghĩa "đang hiệu lực" ở TaskerPriceQuery.
             var activePrice = await _context.TaskerServicePrices
                 .Where(p => p.TaskerId == request.TaskerId && p.ServiceId == request.ServiceId)
                 .ActiveAt(DateTimeOffset.UtcNow)
@@ -38,7 +35,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.RemoveTaskerSe
 
             if (activePrice != null)
             {
-                activePrice.EffectiveTo = DateTimeOffset.UtcNow; // Ghi nhận thời điểm hủy dịch vụ/khóa giá
+                activePrice.EffectiveTo = DateTimeOffset.UtcNow;
             }
 
             await _context.SaveChangesAsync(cancellationToken);

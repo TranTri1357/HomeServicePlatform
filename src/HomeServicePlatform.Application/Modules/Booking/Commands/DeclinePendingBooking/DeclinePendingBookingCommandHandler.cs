@@ -15,13 +15,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclinePendingBooking
 {
-    /// <summary>
-    /// Thợ từ chối đơn thường chưa nhận: đơn chuyển sang Cancelled và khách được hoàn 100%.
-    ///
-    /// <para>Trước đây nút "Từ chối" trên app thợ gọi thẳng <c>/cancel</c>, mà handler đó chỉ chấp
-    /// nhận Accepted/OnTheWay/InProgress — nên mọi lần bấm đều 400. Thợ không có cách nào thoát khỏi
-    /// đơn chưa nhận, và tiền khách nằm chờ tới khi job dọn đơn quá hạn chạy.</para>
-    /// </summary>
     public class DeclinePendingBookingCommandHandler
         : IRequestHandler<DeclinePendingBookingCommand, ApiResponse<bool>>
     {
@@ -43,12 +36,9 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclinePendin
             if (booking == null)
                 throw new NotFoundException($"Không tìm thấy đơn đặt lịch số #{request.BookingId}");
 
-            // 🔒 Chỉ thợ ĐƯỢC GÁN mới được từ chối đơn đó.
             if (!booking.BookingItems.Any(bi => bi.TaskerId == request.TaskerId))
                 throw new ForbiddenException("Bạn không phụ trách đơn này nên không thể từ chối.");
 
-            // 🚨 Đơn khẩn cấp là broadcast nhiều thợ, có luồng bỏ qua riêng (DeclineEmergencyBooking)
-            // vốn KHÔNG hủy đơn — đơn vẫn treo cho thợ khác nhận. Đừng để nhầm sang đây mà hủy oan.
             if (booking.IsEmergency)
                 throw new BadRequestException("Đơn khẩn cấp dùng chức năng bỏ qua riêng, không từ chối ở đây.");
 
@@ -58,16 +48,12 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclinePendin
             await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // 🔒 Khóa theo đơn rồi ĐỌC LẠI: thợ có thể vừa bấm nhận ở tab khác, hoặc job dọn đơn
-                // quá hạn đang xử lý đúng đơn này. Không có bước này thì đơn có thể vừa Accepted vừa
-                // bị hủy, hoặc hoàn tiền hai lần.
                 await _context.AcquireBookingClaimLockAsync(booking.BookingId, ct);
 
                 var currentStatus = await _context.Bookings.AsNoTracking()
                     .Where(b => b.BookingId == booking.BookingId)
                     .Select(b => (short)b.Status)
                     .FirstOrDefaultAsync(ct);
-                // Ném thẳng — khối catch bên dưới lo rollback (rollback hai lần sẽ tự nó ném lỗi khác).
                 if (currentStatus != (short)BookingStatus.Pending)
                     throw new BadRequestException("Đơn đã đổi trạng thái, không từ chối được nữa.");
 
@@ -93,8 +79,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclinePendin
                     CreatedAt = now
                 });
 
-                // 💸 Hoàn 100%: khách đã trả tiền trước khi thợ kịp xem đơn, việc thợ không nhận
-                // hoàn toàn không phải lỗi của khách — không áp phí hủy, sàn không giữ lại gì.
                 var totalPaid = await _context.Payments
                     .Where(p => p.BookingId == booking.BookingId && p.Status == (short)PaymentStatus.Paid)
                     .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
@@ -106,8 +90,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclinePendin
                     $"Thợ từ chối đơn {code}: {request.DeclineReason}",
                     now, ct);
 
-                // 🔔 Báo khách. Dùng type riêng để không lẫn với "thợ hủy đơn đã nhận" — hai việc
-                // khác hẳn nhau về mức độ nghiêm trọng.
                 _context.Notifications.Add(NotificationBuilder.Build(
                     booking.CustomerId,
                     NotificationType.BookingDeclinedByTasker,
@@ -124,9 +106,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.DeclinePendin
                         $"Đơn {code} được hoàn 100% ({outcome.RefundedToCustomer:#,##0}đ) vào ví của bạn."));
                 }
 
-                // ⚠️ CỐ Ý KHÔNG gọi PenalizeTaskerAsync như luồng hủy đơn đã nhận: từ chối đơn chưa
-                // nhận không phải là bỏ việc giữa chừng, phạt ở đây sẽ đẩy thợ tới ngưỡng khóa tài
-                // khoản một cách oan uổng.
 
                 await _context.SaveChangesAsync(ct);
                 await _unitOfWork.CommitTransactionAsync();

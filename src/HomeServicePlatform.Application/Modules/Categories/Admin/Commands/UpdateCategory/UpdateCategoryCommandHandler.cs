@@ -29,7 +29,6 @@ namespace HomeServicePlatform.Application.Modules.Categories.Admin.Commands.Upda
             category.IconUrl = request.IconUrl;
             category.IsActive = request.IsActive;
 
-            // SaveChangesAsync sẽ tự động lưu UpdatedAt nhờ cơ chế Audit Trail của bạn
             await _context.SaveChangesAsync(ct);
             return ApiResponse<bool>.Success(true, "Cập nhật thành công.");
         }

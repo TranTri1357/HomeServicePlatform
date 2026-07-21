@@ -29,7 +29,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return long.TryParse(claim, out taskerId);
         }
 
-        /// <summary>Ví/thu nhập của thợ đang đăng nhập: số dư + lịch sử thực nhận (đã trừ hoa hồng).</summary>
         [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<TaskerIncomeDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -41,7 +40,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Rút tiền khỏi ví thu nhập (demo: trừ thẳng số dư). Trả về số dư mới.</summary>
         [HttpPost("withdraw")]
         [ProducesResponseType(typeof(ApiResponse<decimal>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -53,7 +51,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
 
             if (!TryGetTaskerId(out var taskerId)) return Unauthorized();
 
-            command.TaskerId = taskerId; // 🔒 Ép từ Token, chặn giả mạo
+            command.TaskerId = taskerId;
             var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }

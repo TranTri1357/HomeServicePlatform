@@ -7,10 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Api.Hubs
 {
-    /// <summary>
-    /// Hub chat theo đơn: mỗi đơn là 1 group ("booking-{id}"). Client gọi
-    /// JoinConversation để vào group và nhận sự kiện "ReceiveMessage" realtime.
-    /// </summary>
     [Authorize]
     public class ChatHub : Hub
     {
@@ -26,7 +22,7 @@ namespace HomeServicePlatform.Api.Hubs
         public async Task JoinConversation(long bookingId)
         {
             if (!TryGetUserId(out var userId)) return;
-            if (!await IsParticipant(bookingId, userId)) return; // chỉ khách/thợ của đơn mới được vào
+            if (!await IsParticipant(bookingId, userId)) return;
             await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(bookingId));
         }
 

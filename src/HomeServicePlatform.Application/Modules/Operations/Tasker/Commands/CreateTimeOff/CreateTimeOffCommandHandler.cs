@@ -30,7 +30,6 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Commands.Cre
 
             var timeOff = new TaskerTimeOff { TaskerId = taskerProfile.TaskerProfileId };
 
-            // Ép sang giờ quốc tế (UTC)
             timeOff.RequestTimeOff(
                 request.StartAt.ToUniversalTime(),
                 request.EndAt.ToUniversalTime(),

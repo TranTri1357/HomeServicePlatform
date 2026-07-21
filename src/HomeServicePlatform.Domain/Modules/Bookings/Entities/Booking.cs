@@ -23,12 +23,9 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
         public DateTimeOffset? UpdatedAt { get; set; }
         public int RowVersion { get; set; } = 1;
 
-        // 🚨 Đơn khẩn cấp: khách gọi trực tiếp 1 thợ đang rảnh gần đó, thợ có
-        // EmergencyExpiresAt (30s) để bấm nhận trước khi đơn hết hạn.
         public bool IsEmergency { get; set; } = false;
         public DateTimeOffset? EmergencyExpiresAt { get; set; }
 
-        // Navigation Properties
         public virtual User Customer { get; set; } = null!;
         public virtual BookingAddress? BookingAddress { get; set; }
         public virtual ICollection<BookingItem> BookingItems { get; set; } = new List<BookingItem>();
@@ -37,25 +34,19 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
         public virtual ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
         public virtual ICollection<EmergencyBookingDecline> EmergencyDeclines { get; set; } = new List<EmergencyBookingDecline>();
 
-        /// <summary>
-        /// Bước 1: Khách hàng tạo mới đơn hàng
-        /// </summary>
         public void InitializeBooking(long customerId)
         {
             this.Status = BookingStatus.Pending;
             this.BookingHistories.Add(new BookingHistory
             {
                 BookingId = this.BookingId,
-                OldStatus = -1, // Đơn mới tinh chưa có trạng thái cũ
+                OldStatus = -1,
                 NewStatus = (short)BookingStatus.Pending,
                 ChangedBy = customerId,
                 CreatedAt = DateTime.UtcNow
             });
         }
 
-        /// <summary>
-        /// Các bước cập nhật trạng thái luồng 6 bước nghiêm ngặt (State Machine)
-        /// </summary>
         public void AcceptByTasker(long taskerId, string? note = null)
         {
             if (this.Status != BookingStatus.Pending)
@@ -97,23 +88,13 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
             UpdateStatusAndLog(BookingStatus.Completed, taskerId, note ?? "Công việc hoàn tất, chờ khách thanh toán và xác nhận hoàn thành.");
         }
 
-        /// <summary>
-        /// 🔒 CHỐNG IDOR: chỉ thợ ĐƯỢC GÁN vào đơn mới được đẩy trạng thái đơn đó. Chặn việc một
-        /// thợ khác dò BookingId rồi thao tác lên đơn không phải của mình.
-        /// </summary>
         private void EnsureAssignedTasker(long taskerId)
         {
             if (!this.BookingItems.Any(i => i.TaskerId == taskerId))
                 throw new InvalidOperationException("Bạn không phụ trách đơn này nên không thể thao tác.");
         }
 
-        //public void ConfirmPaymentAndComplete(long systemOrAdminId, string? note = null)
-        //{
-        //    if (this.Status != BookingStatus.PendingPayment)
-        //        throw new InvalidOperationException("Đơn hàng phải ở trạng thái chờ thanh toán.");
 
-        //    UpdateStatusAndLog(BookingStatus.Completed, systemOrAdminId, note ?? "Thanh toán thành công. Đơn hàng kết thúc.");
-        //}
 
         private void UpdateStatusAndLog(BookingStatus newStatus, long actorId, string note)
         {
@@ -121,8 +102,6 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
             this.Status = newStatus;
             this.UpdatedAt = DateTime.UtcNow;
 
-            // 🔄 Đồng bộ trạng thái cho toàn bộ hạng mục để danh sách việc của Thợ
-            // (đọc BookingItem.Status) không bị lệch với trạng thái đơn tổng.
             foreach (var item in this.BookingItems)
             {
                 item.Status = (short)newStatus;
@@ -132,8 +111,8 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Entities
             this.BookingHistories.Add(new BookingHistory
             {
                 BookingId = this.BookingId,
-                OldStatus = (short)oldStatus, // Ép kiểu Enum về short để lưu database
-                NewStatus = (short)newStatus, // Ép kiểu Enum về short để lưu database
+                OldStatus = (short)oldStatus,
+                NewStatus = (short)newStatus,
                 ChangedBy = actorId,
                 CreatedAt = DateTime.UtcNow
             });

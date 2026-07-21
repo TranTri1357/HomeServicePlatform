@@ -29,7 +29,6 @@ namespace HomeServicePlatform.Application.Common.Behaviors
 
                 if (failures.Count != 0)
                 {
-                    // Gom tất cả tin nhắn lỗi lại và ném ra ValidationException của FluentValidation
                     throw new ValidationException(failures);
                 }
             }

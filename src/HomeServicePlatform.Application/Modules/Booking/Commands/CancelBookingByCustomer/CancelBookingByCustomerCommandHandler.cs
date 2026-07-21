@@ -36,7 +36,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
 
         public async Task<ApiResponse<bool>> Handle(CancelBookingByCustomerCommand request, CancellationToken ct)
         {
-            // 1. Lấy đơn hàng kèm các hạng mục (cần TaskerId + giờ hẹn để áp chính sách).
             var booking = await _context.Bookings
                 .Include(b => b.BookingItems)
                 .FirstOrDefaultAsync(b => b.BookingId == request.BookingId, ct);
@@ -44,11 +43,9 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
             if (booking == null)
                 throw new NotFoundException($"Không tìm thấy đơn đặt lịch số #{request.BookingId}");
 
-            // 2. 🔒 Chỉ chủ đơn mới được hủy đơn của chính mình.
             if (booking.CustomerId != request.CustomerId)
                 throw new ForbiddenException("Bạn không có quyền hủy đơn đặt lịch này.");
 
-            // 3. Tính số tiền đã thu qua hệ thống + giờ hẹn sớm nhất, rồi áp chính sách hoàn tiền.
             var totalPaid = await _context.Payments
                 .Where(p => p.BookingId == booking.BookingId && p.Status == (short)PaymentStatus.Paid)
                 .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
@@ -65,7 +62,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
             if (!decision.CanCancel)
                 throw new BadRequestException(decision.Reason);
 
-            // 4. Cập nhật trạng thái đơn + hạng mục + ghi Audit Trail.
             short oldStatus = (short)booking.Status;
             booking.Status = BookingStatus.Cancelled;
             booking.UpdatedAt = now;
@@ -86,7 +82,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                 CreatedAt = now
             });
 
-            // 5. 💸 Thực thi hoàn tiền theo chính sách (idempotent, cộng ví khách + đền thợ).
             var outcome = await RefundExecutor.IssueRefundAsync(
                 _context, booking,
                 decision.RefundAmount, decision.PenaltyAmount,
@@ -94,7 +89,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                 $"Khách hủy đơn: {request.CancelReason}",
                 now, ct);
 
-            // 6. 🔔 Thông báo cho (các) thợ đã được gán vào đơn.
             var taskerIds = booking.BookingItems
                 .Where(bi => bi.TaskerId.HasValue)
                 .Select(bi => bi.TaskerId!.Value)
@@ -111,7 +105,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                         : $"Khách đã hủy đơn BK{booking.BookingId}."));
             }
 
-            // 6b. 🔔 Báo khách số tiền được hoàn (nếu có).
             if (outcome.Executed && outcome.RefundedToCustomer > 0)
             {
                 _context.Notifications.Add(NotificationBuilder.Build(
@@ -121,7 +114,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                     $"Đơn BK{booking.BookingId} đã hủy. Hệ thống hoàn {outcome.RefundedToCustomer:#,##0}đ vào ví của bạn."));
             }
 
-            // 7. Lưu toàn bộ trong một Transaction.
             await _context.SaveChangesAsync(ct);
 
             var message = outcome.RefundedToCustomer > 0

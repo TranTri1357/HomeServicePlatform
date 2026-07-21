@@ -11,16 +11,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HomeServicePlatform.Api.Controllers.Admin
 {
-    /// <summary>
-    /// Tải ảnh (danh mục/dịch vụ) lên Cloudinary qua proxy backend — file KHÔNG đi thẳng từ trình duyệt,
-    /// ApiSecret chỉ nằm ở server. Trả về URL để client lưu vào IconUrl/ImageUrl. Chỉ Admin dùng.
-    /// </summary>
     [ApiController]
     [Route("api/admin/uploads")]
-    [Authorize(Roles = "Admin,SuperAdmin")] // Đồng nhất quyền với các trang quản trị khác
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public class UploadController : ControllerBase
     {
-        private const long MaxBytes = 3 * 1024 * 1024; // 3MB
+        private const long MaxBytes = 3 * 1024 * 1024;
         private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
         {
             "image/jpeg", "image/png", "image/webp", "image/gif"
@@ -44,8 +40,6 @@ namespace HomeServicePlatform.Api.Controllers.Admin
         [ProducesResponseType(typeof(ApiResponse<UploadImageResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        // Không đặt [FromForm] lên IFormFile: nó tự bind từ multipart, còn Swashbuckle sẽ
-        // ném lỗi sinh Swagger nếu có attribute này.
         public async Task<IActionResult> UploadImage(IFormFile? file, [FromQuery] string? folder)
         {
             if (file == null || file.Length == 0)

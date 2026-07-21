@@ -28,12 +28,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTaske
                             s.ServiceId,
                             s.Name,
                             c.Name,
-                            // 💰 Giá đang hiệu lực — đồng bộ với TaskerPriceQuery.IsActiveAt.
-                            //    ⚠️ Cố tình dùng TRUY VẤN CON thay vì group join + DefaultIfEmpty:
-                            //    EF Core 8 KHÔNG dịch nổi `groupJoin.Where(...).OrderByDescending(...)
-                            //    .DefaultIfEmpty()` khi khoá join là anonymous type ghép 2 cột — nó ném
-                            //    "The LINQ expression could not be translated" ngay lúc chạy. Dạng truy
-                            //    vấn con dưới đây dịch ra scalar subquery bình thường và giữ được thứ tự.
                             _context.TaskerServicePrices
                                 .Where(p => p.TaskerId == ts.TaskerId && p.ServiceId == ts.ServiceId
                                             && p.EffectiveFrom <= now

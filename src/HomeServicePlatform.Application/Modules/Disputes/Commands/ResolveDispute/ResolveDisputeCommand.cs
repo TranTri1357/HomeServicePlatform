@@ -9,10 +9,10 @@ using MediatR;
 namespace HomeServicePlatform.Application.Modules.Disputes.Commands.ResolveDispute
 {
     public record ResolveDisputeCommand(
-        long DisputeId,            // Ép buộc nhận từ Route URL
-        short NewStatus,           // 1: Resolved (Đồng ý bồi hoàn), 2: Rejected (Từ chối khiếu nại)
-        string ResolutionNote,     // Nội dung phán quyết của Admin
-        decimal? RefundAmount,     // Số tiền hoàn trả cho khách (nếu có)
-        int CurrentRowVersion      // Kiểm tra bất đồng bộ tránh 2 Admin duyệt cùng lúc
+        long DisputeId,
+        short NewStatus,
+        string ResolutionNote,
+        decimal? RefundAmount,
+        int CurrentRowVersion
     ) : IRequest<ApiResponse<bool>>;
 }

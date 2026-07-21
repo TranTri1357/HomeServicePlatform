@@ -31,7 +31,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Operatio
 
             entity.HasOne(d => d.Booking).WithMany(p => p.Disputes).HasForeignKey(d => d.BookingId).HasConstraintName("fk_disputes_booking");
 
-            // Cấu hình ngăn chặn xung đột Cascade đường dẫn trỏ về bảng Users
             entity.HasOne(d => d.RaisedBy).WithMany().HasForeignKey(d => d.RaisedById).OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_disputes_raised_by");
 
             entity.HasIndex(e => e.BookingId).HasDatabaseName("ix_disputes_booking_id");

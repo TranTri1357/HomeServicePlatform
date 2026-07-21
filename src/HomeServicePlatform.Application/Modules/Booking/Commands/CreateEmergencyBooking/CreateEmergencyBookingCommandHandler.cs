@@ -17,8 +17,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
     public class CreateEmergencyBookingCommandHandler
         : IRequestHandler<CreateEmergencyBookingCommand, ApiResponse<CreateEmergencyBookingResponse>>
     {
-        // Vòng quét đầu tiên và thời gian thợ có để bấm nhận. Việc NỚI bán kính (10km, 15km) do
-        // frontend điều phối qua re-broadcast khi hết vòng mà chưa ai nhận.
         private const double InitialRadiusKm = 5.0;
         private static readonly TimeSpan ResponseWindow = TimeSpan.FromSeconds(30);
 
@@ -30,25 +28,20 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
         {
             _bookingRepository = bookingRepository;
             _context = context;
-            _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // WGS84 (PostGIS)
+            _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         }
 
         public async Task<ApiResponse<CreateEmergencyBookingResponse>> Handle(CreateEmergencyBookingCommand request, CancellationToken ct)
         {
-            // 1. Kiểm tra đầu vào cơ bản.
             if (string.IsNullOrWhiteSpace(request.AddressLine))
                 throw new BadRequestException("Vui lòng nhập địa chỉ để thợ đến.");
 
-            // 2. Dịch vụ phải tồn tại và đang hoạt động.
             var service = await _context.Services
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.ServiceId == request.ServiceId && s.IsActive && !s.IsDeleted, ct);
             if (service == null)
                 throw new NotFoundException("Không tìm thấy dịch vụ hoặc dịch vụ đã ngừng.");
 
-            // 3. Dựng đơn khẩn cấp TREO MỞ: chưa gán thợ (TaskerId = null → KHÔNG giữ chỗ lịch của ai,
-            //    khớp EXCLUDE constraint chỉ áp dụng khi tasker_id IS NOT NULL), giá = 0 (chốt khi thợ nhận),
-            //    cửa sổ phản hồi 30s. Thợ nào bấm nhận trước sẽ được gán + chốt giá ở AcceptBooking.
             var nowUtc = DateTimeOffset.UtcNow;
             var startAtUtc = nowUtc;
             var endAtUtc = nowUtc.AddMinutes(service.DurationMinutes > 0 ? service.DurationMinutes : 60);
@@ -71,7 +64,7 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
             booking.BookingItems.Add(new BookingItem
             {
                 ServiceId = request.ServiceId,
-                TaskerId = null, // chưa gán — treo mở cho mọi thợ trong vòng
+                TaskerId = null,
                 StartAt = startAtUtc,
                 EndAt = endAtUtc,
                 Quantity = 1,
@@ -94,11 +87,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CreateEmergen
                 Geom = geom
             };
 
-            // 4. Lưu đơn (không cần advisory lock/buffer ở bước tạo vì chưa biết thợ — sẽ kiểm tra khi thợ nhận).
             await _bookingRepository.SaveAggregateAsync(booking);
 
-            // 5. Quét thợ đủ điều kiện trong vòng đầu (5km) để controller bắn SignalR. Rỗng cũng không sao:
-            //    frontend sẽ tự re-broadcast nới bán kính.
             var taskers = await EmergencyTaskerFinder.FindEligibleAsync(
                 _context, request.ServiceId, request.Latitude, request.Longitude, InitialRadiusKm, ct);
 

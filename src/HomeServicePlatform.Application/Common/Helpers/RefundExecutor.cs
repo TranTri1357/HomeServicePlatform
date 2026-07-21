@@ -11,26 +11,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Application.Common.Helpers
 {
-    /// <summary>Số tiền thực tế đã di chuyển sau khi thực thi hoàn tiền.</summary>
     public readonly record struct RefundOutcome(
-        bool Executed,          // false nếu không có gì để hoàn (chưa thu tiền / đã hoàn trước đó)
+        bool Executed,
         decimal RefundedToCustomer,
         decimal CompensatedToTasker);
 
-    /// <summary>
-    /// Thực thi việc hoàn tiền cho một đơn: tạo bản ghi <see cref="Refund"/>, đánh dấu
-    /// Payment = Refunded, rồi GIẢI PHÓNG khoản sàn đang giữ hộ và chia lại cho các bên.
-    ///
-    /// Bút toán (tổng bằng 0):
-    ///     ví ký quỹ    − totalPaid
-    ///     ví khách     + refund      (hoàn lại)
-    ///     ví thợ       + penalty     (đền phí hủy — KHÔNG khấu hoa hồng vì đây là bồi thường)
-    ///     ví doanh thu + phần dôi    (phí hủy sàn giữ lại)
-    ///
-    /// Mọi thay đổi được GẮN vào cùng DbContext caller đang dùng và sẽ được lưu chung trong
-    /// một SaveChanges/transaction của caller (đảm bảo nguyên tử). Hàm IDEMPOTENT: nếu đơn đã
-    /// có Refund thì bỏ qua, tránh hoàn tiền 2 lần khi client bấm hủy nhiều lần.
-    /// </summary>
     public static class RefundExecutor
     {
         public static async Task<RefundOutcome> IssueRefundAsync(
@@ -43,14 +28,11 @@ namespace HomeServicePlatform.Application.Common.Helpers
             DateTimeOffset now,
             CancellationToken ct)
         {
-            // Idempotent: đã có lệnh hoàn cho đơn này -> không làm lại.
             var alreadyRefunded = await context.Refunds
                 .AnyAsync(r => r.BookingId == booking.BookingId, ct);
             if (alreadyRefunded)
                 return new RefundOutcome(false, 0m, 0m);
 
-            // Chỉ hoàn phần đã THỰC SỰ thu qua hệ thống (Payment.Status == Paid).
-            // Cash / cổng chưa xác nhận không có tiền trong hệ thống nên không hoàn.
             var paidPayments = await context.Payments
                 .Where(p => p.BookingId == booking.BookingId && p.Status == (short)PaymentStatus.Paid)
                 .ToListAsync(ct);
@@ -64,8 +46,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
                 .Select(bi => bi.TaskerId!.Value)
                 .FirstOrDefault();
 
-            // Không thể chi ra nhiều hơn số đã thu: chặn trần theo thứ tự ưu tiên
-            // (hoàn khách trước, đền thợ sau, phần còn lại là phí hủy của sàn).
             var refundDue = Math.Round(Math.Min(refundAmount, totalPaid), 2, MidpointRounding.AwayFromZero);
 
             var penaltyDue = taskerId > 0
@@ -74,7 +54,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
 
             var platformFee = totalPaid - refundDue - penaltyDue;
 
-            // Tỷ lệ hoàn áp đều cho từng khoản đã thu (vd đơn có cả cọc lẫn trả thêm).
             var refundRatio = totalPaid > 0m ? refundDue / totalPaid : 0m;
 
             foreach (var payment in paidPayments)
@@ -88,18 +67,16 @@ namespace HomeServicePlatform.Application.Common.Helpers
                     Amount = portion,
                     Status = (short)RefundStatus.Completed,
                     InitiatedBy = (short)initiatedBy,
-                    RefundMethod = 0, // ví nội bộ
+                    RefundMethod = 0,
                     Reason = reason,
                     CreatedAt = now,
                     CompletedAt = now
                 });
 
-                // Đơn đã hủy -> khoản thanh toán coi như đã tất toán bằng hoàn tiền.
                 payment.Status = (short)PaymentStatus.Refunded;
                 payment.UpdatedAt = now;
             }
 
-            // Vế ghi NỢ — lấy tiền ra khỏi nơi đang thực sự giữ nó.
             await ReleaseHeldFundsAsync(context, booking.BookingId, totalPaid, now, ct);
 
             var walletOwners = taskerId > 0
@@ -108,7 +85,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
 
             var wallets = await WalletLedger.ResolveAsync(context, walletOwners, ct);
 
-            // Vế ghi CÓ (1) — hoàn lại cho khách.
             if (refundDue > 0m)
             {
                 WalletLedger.Credit(
@@ -120,7 +96,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
                     note: $"Hoàn tiền đơn BK{booking.BookingId}");
             }
 
-            // Vế ghi CÓ (2) — đền phí hủy cho thợ đảm nhận đơn.
             if (penaltyDue > 0m)
             {
                 WalletLedger.Credit(
@@ -132,8 +107,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
                     note: $"Bồi thường hủy đơn BK{booking.BookingId}");
             }
 
-            // Vế ghi CÓ (3) — phần dôi là phí hủy sàn giữ lại. Thiếu bước này thì tiền sẽ kẹt
-            // vĩnh viễn trong ví ký quỹ của một đơn đã đóng và phá vỡ bất biến đối soát.
             if (platformFee > 0m)
             {
                 WalletLedger.Credit(
@@ -148,14 +121,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
             return new RefundOutcome(true, refundDue, penaltyDue);
         }
 
-        /// <summary>
-        /// Rút <paramref name="totalPaid"/> ra khỏi nơi đang thực sự giữ nó.
-        ///
-        /// Bình thường đơn bị hủy trước khi tất toán nên toàn bộ khoản đã thu vẫn nằm trong ví ký
-        /// quỹ. Nhưng có trường hợp hoàn tiền SAU khi đơn đã tất toán (vd khiếu nại xử lý muộn):
-        /// khi đó ký quỹ đã nhả tiền cho thợ và sàn, nên phần thiếu phải do ví doanh thu gánh —
-        /// tuyệt đối không móc vào tiền đang giữ hộ của các đơn khác.
-        /// </summary>
         private static async Task ReleaseHeldFundsAsync(
             IApplicationDbContext context,
             long bookingId,
@@ -163,7 +128,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
             DateTimeOffset now,
             CancellationToken ct)
         {
-            // Số còn giữ cho riêng đơn này = đã vào − đã ra (index sẵn có trên reference_id).
             var escrowMovements = await context.WalletTransactions
                 .AsNoTracking()
                 .Where(t => t.ReferenceId == bookingId

@@ -14,6 +14,6 @@ namespace HomeServicePlatform.Application.Modules.Identity.Admin.Dtos
         int TotalBookings,    
         decimal TotalSpent,   
         DateTimeOffset CreatedAt, 
-        short Status          // (1: Hoạt động, 0: Bị khóa)
+        short Status
     );
 }

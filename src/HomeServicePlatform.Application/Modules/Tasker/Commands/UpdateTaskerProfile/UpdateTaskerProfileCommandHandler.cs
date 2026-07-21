@@ -35,7 +35,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.UpdateTaskerPr
 
             var newPhone = request.Phone.Trim();
 
-            // Chặn trùng số điện thoại với tài khoản khác.
             bool phoneTaken = await _context.Users
                 .AnyAsync(u => u.Phone == newPhone && u.UserId != request.UserId && !u.IsDeleted, ct);
             if (phoneTaken)

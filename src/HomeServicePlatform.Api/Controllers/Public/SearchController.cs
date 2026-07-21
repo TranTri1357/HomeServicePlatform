@@ -23,7 +23,6 @@ namespace HomeServicePlatform.Api.Controllers.Public
         {
             var result = await _mediator.Send(new GlobalSearchQuery { Keyword = keyword });
 
-            // Sử dụng StatusCode từ ApiResponse để trả về response chuẩn
             return StatusCode(result.StatusCode, result);
         }
     }

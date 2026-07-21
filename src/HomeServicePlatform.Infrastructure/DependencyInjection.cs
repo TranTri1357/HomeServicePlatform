@@ -23,22 +23,18 @@ namespace HomeServicePlatform.Infrastructure
     {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Lấy chuỗi kết nối từ Configuration giống hệt bên Program
             var connectionString = configuration.GetConnectionString("DefaultConnection");
 
-            // Cấu hình DbContext kết hợp PostgreSQL + PostGIS (NetTopologySuite)
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseNpgsql(connectionString, o => o.UseNetTopologySuite()));
 
             services.AddScoped<IApplicationDbContext>(provider =>
                 provider.GetRequiredService<ApplicationDbContext>());
 
-            // Đăng ký các Repository đặc thù khác nếu có
             services.AddScoped<IBookingRepository, BookingRepository>();
 
             services.AddScoped<IPaymentStrategy, WalletPaymentStrategy>();
             services.AddScoped<IPaymentStrategy, CashPaymentStrategy>();
-            // Cổng giả lập phục vụ demo (không cần merchant credentials).
             services.AddScoped<IPaymentStrategy, MockMoMoPaymentStrategy>();
             services.AddScoped<IPaymentStrategy, MockZaloPayPaymentStrategy>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -47,7 +43,6 @@ namespace HomeServicePlatform.Infrastructure
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Lưu trữ ảnh qua Cloudinary (khóa nạp từ section "Cloudinary" — User Secrets/Env, không để trong git).
             services.Configure<CloudinaryOptions>(opts =>
             {
                 var section = configuration.GetSection(CloudinaryOptions.SectionName);

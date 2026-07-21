@@ -24,7 +24,6 @@ namespace HomeServicePlatform.Domain.Modules.Identity.Entities
         public int RowVersion { get; set; } = 1;
         public bool IsDeleted { get; set; } = false;
 
-        // Navigation Properties
         public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
         public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
         public virtual TaskerProfile? TaskerProfile { get; set; }

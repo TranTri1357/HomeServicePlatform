@@ -38,17 +38,6 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Commands.CreateCom
                 throw new BadRequestException("Thời gian kết thúc hiệu lực (EffectiveTo) phải lớn hơn thời gian bắt đầu (EffectiveFrom).");
             }
 
-            // 🏦 Tìm các biểu phí CHỒNG LẤN khoảng hiệu lực với biểu phí sắp tạo.
-            //    Trước đây chỗ này hỏi "có biểu phí nào đang chạy LÚC NÀY không" rồi đóng nó
-            //    tại thời điểm `now`. Sai ở hai điểm:
-            //      1) Biểu phí hẹn trước cho tương lai lọt lưới (chưa chạy lúc này nhưng vẫn
-            //         chồng lấn với khoảng sắp tạo) → hai biểu phí cùng áp một lúc.
-            //      2) Nếu biểu phí mới bắt đầu ở TƯƠNG LAI mà lại đóng biểu phí cũ NGAY BÂY GIỜ
-            //         thì sinh ra KHOẢNG TRỐNG không biểu phí nào hiệu lực; trong khoảng đó
-            //         CommissionResolver trả 0% → sàn mất trắng hoa hồng cho tới ngày biểu phí
-            //         mới có hiệu lực.
-            //    Nay: hỏi theo CHỒNG LẤN, và đóng biểu phí cũ ĐÚNG LÚC biểu phí mới bắt đầu
-            //    → nối liền mạch, không hở, không đè.
             var overlapping = await _context.Commissions
                 .AsNoTracking()
                 .Where(c => c.ServiceId == targetServiceId && c.TaskerId == targetTaskerId)
@@ -57,8 +46,6 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Commands.CreateCom
 
             foreach (var old in overlapping)
             {
-                // Biểu phí cũ bắt đầu SAU thời điểm biểu phí mới có hiệu lực thì không thể
-                // "cắt đuôi" cho gọn được — báo lỗi để admin tự xử lý thay vì âm thầm ghi đè.
                 if (old.EffectiveFrom >= finalEffectiveFrom)
                 {
                     throw new BadRequestException(
@@ -69,7 +56,7 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Commands.CreateCom
 
                 var oldEntity = new Commission { CommissionId = old.CommissionId };
                 _context.Commissions.Attach(oldEntity);
-                oldEntity.EffectiveTo = finalEffectiveFrom; // nối liền mạch, không tạo khoảng trống
+                oldEntity.EffectiveTo = finalEffectiveFrom;
                 if (_context is DbContext efContext)
                 {
                     efContext.Entry(oldEntity).Property(x => x.EffectiveTo).IsModified = true;

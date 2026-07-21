@@ -33,7 +33,6 @@ namespace HomeServicePlatform.Application.Modules.Identity.Admin.Commands.Toggle
             if (request.UserId == _currentUserService.UserId)
                 throw new BadRequestException("Bạn không thể tự khóa tài khoản của chính mình.");
 
-            // 1 là Hoạt động (Active), 0 là Bị khóa (Locked)
             string message;
             if (user.Status == 1)
             {

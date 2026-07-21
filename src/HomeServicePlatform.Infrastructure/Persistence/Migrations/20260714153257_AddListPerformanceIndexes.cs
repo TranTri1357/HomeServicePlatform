@@ -4,10 +4,8 @@
 
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class AddListPerformanceIndexes : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
@@ -34,7 +32,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 columns: new[] { "customer_id", "created_at" });
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
