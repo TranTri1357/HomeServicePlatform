@@ -20,7 +20,7 @@ namespace HomeServicePlatform.Infrastructure.Identity
 
         public JwtTokenGenerator(IConfiguration configuration) => _configuration = configuration;
 
-        public string GenerateToken(User user, IList<string> roles)
+        public (string Token, DateTime ExpiresAtUtc) GenerateToken(User user, IList<string> roles)
         {
             var claims = new List<Claim>
         {
@@ -34,14 +34,16 @@ namespace HomeServicePlatform.Infrastructure.Identity
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+            var expiresAtUtc = DateTime.UtcNow.AddMinutes(ResolveExpiryMinutes());
+
             var token = new JwtSecurityToken(
                 issuer: _configuration["JwtSettings:Issuer"],
                 audience: _configuration["JwtSettings:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(ResolveExpiryMinutes()),
+                expires: expiresAtUtc,
                 signingCredentials: creds
             );
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return (new JwtSecurityTokenHandler().WriteToken(token), expiresAtUtc);
         }
 
         private double ResolveExpiryMinutes()

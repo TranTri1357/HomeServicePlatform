@@ -9,7 +9,7 @@ namespace HomeServicePlatform.Application.Common.Interfaces
 {
     public interface IJwtTokenGenerator
     {
-        string GenerateToken(User user, IList<string> roles);
+        (string Token, DateTime ExpiresAtUtc) GenerateToken(User user, IList<string> roles);
         string GenerateRefreshToken();
     }
 }

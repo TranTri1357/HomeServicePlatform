@@ -43,10 +43,9 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.Login
             var roles = user.UserRoles.Select(ur => ur.Role.RoleName).ToList();
             if (roles.Count == 0) roles = new List<string> { "Customer" };
 
-            var accessToken = _jwtTokenGenerator.GenerateToken(user, roles);
+            var (accessToken, accessTokenExpiresAt) = _jwtTokenGenerator.GenerateToken(user, roles);
             var refreshTokenStr = _jwtTokenGenerator.GenerateRefreshToken();
 
-            var accessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(60);
             var refreshTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(7);
 
             await _tokenRepo.AddAsync(new Token
@@ -68,7 +67,7 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.Login
                 Roles = roles,
                 AccessToken = accessToken,
                 RefreshToken = refreshTokenStr,
-                AccessTokenExpiresAt = accessTokenExpiresAt.UtcDateTime,
+                AccessTokenExpiresAt = accessTokenExpiresAt,
                 RefreshTokenExpiresAt = refreshTokenExpiresAt.UtcDateTime
             }, "Đăng nhập thành công");
         }

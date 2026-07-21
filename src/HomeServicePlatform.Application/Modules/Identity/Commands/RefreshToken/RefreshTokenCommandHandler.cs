@@ -56,9 +56,8 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.RefreshToken
             var roles = user.UserRoles.Select(ur => ur.Role.RoleName).ToList();
             if (roles.Count == 0) roles = new List<string> { "Customer" };
 
-            var newAccessToken = _jwtTokenGenerator.GenerateToken(user, roles);
+            var (newAccessToken, accessTokenExpiresAt) = _jwtTokenGenerator.GenerateToken(user, roles);
             var newRefreshTokenStr = _jwtTokenGenerator.GenerateRefreshToken();
-            var accessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(60);
             var refreshTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(7);
 
             await _tokenRepo.AddAsync(new Token
@@ -79,7 +78,7 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.RefreshToken
                 Roles = roles,
                 AccessToken = newAccessToken,
                 RefreshToken = newRefreshTokenStr,
-                AccessTokenExpiresAt = accessTokenExpiresAt.UtcDateTime,
+                AccessTokenExpiresAt = accessTokenExpiresAt,
                 RefreshTokenExpiresAt = refreshTokenExpiresAt.UtcDateTime
             }, "Làm mới token thành công");
         }
