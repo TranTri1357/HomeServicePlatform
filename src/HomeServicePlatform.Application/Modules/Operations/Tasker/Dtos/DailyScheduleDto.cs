@@ -19,7 +19,6 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Dtos
     {
         public TimeOnly Time { get; set; }
 
-        // 0: Trống (Xanh lá), 1: Đã đặt (Xanh dương), 2: Xin nghỉ/Không làm việc (Xám)
         public short Status { get; set; }
     }
 
@@ -32,7 +31,6 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Dtos
         public TimeOnly StartTime { get; set; }
         public TimeOnly EndTime { get; set; }
 
-        // Dùng Enum hoặc Short: Sắp tới, Đang thực hiện, Hoàn thành
         public short JobStatus { get; set; }
     }
 

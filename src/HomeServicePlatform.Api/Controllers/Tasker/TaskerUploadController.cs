@@ -9,17 +9,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HomeServicePlatform.Api.Controllers.Tasker
 {
-    /// <summary>
-    /// Tải ảnh giấy tờ xác minh (CCCD/chứng chỉ) của thợ lên Cloudinary qua proxy backend.
-    /// Tách khỏi UploadController của Admin: thợ chỉ ghi được vào thư mục "taskers", không
-    /// đụng tới ảnh danh mục/dịch vụ.
-    /// </summary>
     [ApiController]
     [Route("api/tasker/uploads")]
     [Authorize(Roles = "Tasker")]
     public class TaskerUploadController : ControllerBase
     {
-        private const long MaxBytes = 3 * 1024 * 1024; // 3MB
+        private const long MaxBytes = 3 * 1024 * 1024;
         private const string Folder = "taskers";
         private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -40,8 +35,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         [ProducesResponseType(typeof(ApiResponse<TaskerUploadImageResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        // Không đặt [FromForm] lên IFormFile: nó tự bind từ multipart, còn Swashbuckle sẽ
-        // ném lỗi sinh Swagger nếu có attribute này.
         public async Task<IActionResult> UploadImage(IFormFile? file)
         {
             if (file == null || file.Length == 0)

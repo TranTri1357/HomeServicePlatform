@@ -11,8 +11,8 @@ using System.Threading.Tasks;
 namespace HomeServicePlatform.Api.Controllers.Customer
 {
     [ApiController]
-    [Route("api/payments")] // Định nghĩa tuyến đường gọi API tổng
-    [Authorize(Roles = "Customer")] // 🛡️ BẢO MẬT: Chỉ cho phép tài khoản Khách hàng thực hiện thanh toán
+    [Route("api/payments")]
+    [Authorize(Roles = "Customer")]
     public class ClientPaymentController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -34,7 +34,7 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long customerId))
             {
-                return Unauthorized(); // 🟢 Áp dụng Cách B tinh gọn, an toàn
+                return Unauthorized();
             }
              
             var securedCommand = command with { CustomerId = customerId };
@@ -44,11 +44,6 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Callback GIẢ LẬP của cổng thanh toán (MoMo/ZaloPay demo). Trang cổng
-        /// giả lập ở Frontend gọi endpoint này khi khách bấm "Đã thanh toán" /
-        /// "Hủy" để cập nhật trạng thái giao dịch — mô phỏng luồng IPN thực tế.
-        /// </summary>
         [HttpPost("mock/confirm")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -63,7 +58,6 @@ namespace HomeServicePlatform.Api.Controllers.Customer
                 return Unauthorized();
             }
 
-            // 🔒 Ép CustomerId từ Token, chặn giả mạo
             var securedCommand = command with { CustomerId = customerId };
 
             var result = await _mediator.Send(securedCommand);

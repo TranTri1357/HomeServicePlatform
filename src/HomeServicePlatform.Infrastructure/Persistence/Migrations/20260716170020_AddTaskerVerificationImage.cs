@@ -4,10 +4,8 @@
 
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class AddTaskerVerificationImage : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
@@ -25,7 +23,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 nullable: true);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(

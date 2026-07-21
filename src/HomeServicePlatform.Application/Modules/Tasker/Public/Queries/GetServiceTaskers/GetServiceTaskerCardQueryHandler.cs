@@ -25,7 +25,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
         {
             var now = DateTimeOffset.UtcNow;
 
-            // Cùng bộ lọc/shape với danh sách gợi ý — chỉ khác là khóa theo đúng một thợ.
             var card = await _context.TaskerServices
                 .AsNoTracking()
                 .Where(ts => ts.ServiceId == request.ServiceId
@@ -49,7 +48,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
                 })
                 .FirstOrDefaultAsync(ct);
 
-            // 📍 Cùng cách gắn khu vực/khoảng cách như danh sách thợ.
             if (card != null)
             {
                 var locations = await TaskerLocationResolver.LoadAsync(

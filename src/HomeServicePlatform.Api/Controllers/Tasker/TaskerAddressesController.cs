@@ -10,11 +10,6 @@ using System.Security.Claims;
 
 namespace HomeServicePlatform.Api.Controllers.Tasker
 {
-    /// <summary>
-    /// Địa chỉ hoạt động của thợ (Phương án B: dùng chung bảng Address, khóa theo
-    /// UserId — mà UserId của thợ chính là TaskerProfileId). Tái sử dụng nguyên các
-    /// command/query địa chỉ của khách, chỉ ép UserId từ Token của thợ.
-    /// </summary>
     [Route("api/tasker/addresses")]
     [ApiController]
     [Authorize(Roles = "Tasker")]
@@ -27,7 +22,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             _mediator = mediator;
         }
 
-        // Bóc tách TaskerId (== UserId) từ Token; trả về false nếu không hợp lệ.
         private bool TryGetTaskerId(out long taskerId)
         {
             taskerId = 0;
@@ -51,7 +45,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             if (command == null) return BadRequest("Dữ liệu địa chỉ không được để trống.");
             if (!TryGetTaskerId(out var taskerId)) return Unauthorized();
 
-            command.CustomerId = taskerId; // 🔒 Ép UserId từ Token
+            command.CustomerId = taskerId;
             var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }
@@ -63,7 +57,7 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             if (!TryGetTaskerId(out var taskerId)) return Unauthorized();
 
             command.AddressId = id;
-            command.CustomerId = taskerId; // 🔒 Ép UserId từ Token
+            command.CustomerId = taskerId;
             var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }

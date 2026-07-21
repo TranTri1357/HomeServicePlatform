@@ -22,7 +22,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
 
         public async Task<ApiResponse<List<TaskerJobDto>>> Handle(GetTaskerJobsQuery request, CancellationToken cancellationToken)
         {
-            // 1. Khởi tạo Query gốc kết nối trực tiếp trên các Entity thô dưới Database
             var sourceQuery = from item in _context.BookingItems
                               where item.TaskerId == request.TaskerId
 
@@ -34,40 +33,30 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobs
                               from subAddr in addrGroup.DefaultIfEmpty()
                               select new { item, b, cust, s, subAddr };
 
-            // 1b. 🔒 LUỒNG CÁCH 2: Chỉ hiện cho thợ những đơn ĐÃ CHỐT — tức đã thanh toán thành công
-            //     (Status==1) HOẶC đơn tiền mặt trả-khi-hoàn-thành (Status==0 & Method==Cash(2)).
-            //     Đơn mới "giữ chỗ" chưa qua thanh toán (không có payment) không được lộ cho thợ.
             sourceQuery = sourceQuery.Where(q =>
                 _context.Payments.Any(p => p.BookingId == q.b.BookingId
                                            && (p.Status == (short)PaymentStatus.Paid
                                                || (p.Status == (short)PaymentStatus.Pending && p.Method == (short)PaymentMethod.Cash))));
 
-            // 2. 🟢 CHỌN LỌC HOẶC KHÔNG LỌC:
-            // Nếu có truyền status -> Thêm điều kiện lọc. Nếu để trống -> Bỏ qua và lấy TẤT CẢ.
             if (request.Status.HasValue)
             {
-                // Lọc theo trạng thái ĐƠN TỔNG (authoritative), khớp với hiển thị.
                 sourceQuery = sourceQuery.Where(q => (short)q.b.Status == request.Status.Value);
             }
 
-            // 3. Sắp xếp theo thứ tự thời gian công việc gần nhất lên đầu
             sourceQuery = sourceQuery.OrderBy(q => q.item.StartAt);
 
-            // 4. Cuối cùng mới Projection nhào nặn cấu trúc ra DTO để trả về cho Client
             var result = await sourceQuery
                 .Select(q => new TaskerJobDto(
                     q.item.BookingItemId,
                     q.b.BookingId,
                     q.s.Name,
-                    // Tên + SĐT ưu tiên lấy từ thông tin liên hệ khách nhập lúc đặt lịch (BookingAddress),
-                    // fallback về tài khoản khách nếu đơn cũ chưa có BookingAddress.
                     q.subAddr != null ? q.subAddr.FullName : q.cust.FullName,
                     q.subAddr != null ? q.subAddr.Phone : q.cust.Phone,
                     q.item.StartAt,
                     q.item.EndAt,
                     q.subAddr != null ? q.subAddr.AddressLine : "Chưa cập nhật địa chỉ",
                     q.item.TotalPrice,
-                    (short)q.b.Status // Trạng thái đơn tổng (nguồn chuẩn), tránh lệch với item
+                    (short)q.b.Status
                 ))
                 .ToListAsync(cancellationToken);
 

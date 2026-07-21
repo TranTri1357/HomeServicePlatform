@@ -32,7 +32,6 @@ namespace HomeServicePlatform.Application.Modules.Identity.Commands.RefreshToken
             if (existingToken == null || existingToken.ExpiredAt < DateTimeOffset.UtcNow)
                 throw new UnauthorizedException("Refresh token không hợp lệ hoặc đã hết hạn.");
 
-            // Tấn công Re-use Khóa khẩn cấp toàn bộ session
             if (existingToken.IsRevoked)
             {
                 var allUserTokens = await _context.Tokens.Where(t => t.UserId == existingToken.UserId && !t.IsRevoked).ToListAsync(cancellationToken);

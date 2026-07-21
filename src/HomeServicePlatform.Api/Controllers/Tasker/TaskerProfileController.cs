@@ -25,8 +25,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetTaskerProfile([FromRoute] long id)
         {
-            // 🔒 CHỐNG IDOR/LỘ PII: hồ sơ này chứa SĐT/email + lý do bị từ chối (thông tin riêng).
-            //    Thợ chỉ được xem hồ sơ CỦA CHÍNH MÌNH — id phải khớp với UserId trong token.
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long tokenUserId))
                 return Unauthorized();
@@ -47,7 +45,6 @@ namespace HomeServicePlatform.Api.Controllers.Tasker
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Thợ tự cập nhật thông tin tài khoản của mình.</summary>
         [HttpPut]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateTaskerProfileCommand command)

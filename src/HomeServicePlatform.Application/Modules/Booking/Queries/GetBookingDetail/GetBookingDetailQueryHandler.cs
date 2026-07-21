@@ -29,7 +29,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetBookingDeta
             if (booking == null)
                 throw new NotFoundException($"Không tìm thấy dữ liệu chi tiết cho đơn hàng số #{request.BookingId}");
 
-            // Thợ của item đầu tiên (TaskerId = TaskerProfileId = UserId).
             var firstTaskerId = await _context.BookingItems
                 .AsNoTracking()
                 .Where(i => i.BookingId == request.BookingId && i.TaskerId != null)

@@ -36,7 +36,6 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Queries.GetCommiss
                                   c.CommissionRate,
                                   c.EffectiveFrom,
                                   c.EffectiveTo,
-                                  // 🏦 Đồng bộ với CommissionQuery.IsActiveAt (giới hạn EF trong Select).
                                   c.EffectiveFrom <= now && (c.EffectiveTo == null || c.EffectiveTo > now)
                               )).FirstOrDefaultAsync(ct);
 

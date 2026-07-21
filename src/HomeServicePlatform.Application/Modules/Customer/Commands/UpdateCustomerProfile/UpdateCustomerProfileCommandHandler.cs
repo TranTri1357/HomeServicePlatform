@@ -29,7 +29,6 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.UpdateCustom
 
             var newPhone = request.Phone.Trim();
 
-            // Chặn trùng số điện thoại với tài khoản khác
             bool phoneTaken = await _context.Users
                 .AnyAsync(u => u.Phone == newPhone && u.UserId != request.CustomerId && !u.IsDeleted, ct);
             if (phoneTaken)

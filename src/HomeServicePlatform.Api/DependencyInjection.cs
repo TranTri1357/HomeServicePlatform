@@ -23,9 +23,6 @@ namespace HomeServicePlatform.Api
     {
         public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // 🌐 CORS: KHÔNG mở cho mọi origin nữa. Chỉ cho phép các origin frontend đã biết.
-            //    Origin production cấu hình qua "Cors:AllowedOrigins" (appsettings/env),
-            //    cộng thêm các origin dev localhost mặc định bên dưới.
             var configuredOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                                     ?? Array.Empty<string>();
             var defaultDevOrigins = new[]
@@ -47,13 +44,9 @@ namespace HomeServicePlatform.Api
                           .AllowAnyHeader());
             });
 
-            // Đọc cấu hình JWT
             var jwtSettings = configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["Secret"];
 
-            // 🔐 Secret KHÔNG còn nằm trong appsettings.json (đã gỡ). Bắt buộc nạp qua
-            // User Secrets (dev) hoặc biến môi trường JwtSettings__Secret (production).
-            // Fail-fast với thông báo rõ ràng thay vì lỗi khó hiểu khi validate token.
             if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Length < 32)
             {
                 throw new InvalidOperationException(
@@ -62,7 +55,6 @@ namespace HomeServicePlatform.Api
                     "hoặc biến môi trường JwtSettings__Secret trên server. Xem README.");
             }
 
-            // Đăng ký hệ thống Authentication của ASP.NET Core
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -79,14 +71,12 @@ namespace HomeServicePlatform.Api
                     ValidIssuer = jwtSettings["Issuer"],
                     ValidAudience = jwtSettings["Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-                    // Dung sai 30s cho lệch giờ nhẹ giữa client/server (tránh 401 lẻ tẻ khi token vừa hết hạn).
                     ClockSkew = TimeSpan.FromSeconds(30),
                     RoleClaimType = ClaimTypes.Role
                 };
 
                 options.Events = new JwtBearerEvents
                 {
-                    // Sự kiện khi bị lỗi 401
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();
@@ -104,7 +94,6 @@ namespace HomeServicePlatform.Api
                         await context.Response.WriteAsync(json);
                     },
 
-                    // Sự kiện khi bị lỗi 403
                     OnForbidden = async context =>
                     {
                         context.Response.StatusCode = 403;
@@ -121,8 +110,6 @@ namespace HomeServicePlatform.Api
                         await context.Response.WriteAsync(json);
                     },
 
-                    // SignalR (WebSocket) không gửi được header Authorization,
-                    // nên lấy JWT từ query string ?access_token=... cho các Hub.
                     OnMessageReceived = context =>
                     {
                         var accessToken = context.Request.Query["access_token"];
@@ -139,17 +126,14 @@ namespace HomeServicePlatform.Api
 
             services.Configure<ApiBehaviorOptions>(options =>
             {
-                // Tắt kiểm tra ModelState mặc định, để FluentValidation và Middleware
                 options.SuppressModelStateInvalidFilter = true;
             });
 
             services.AddHttpContextAccessor();
             services.AddControllers();
             services.AddEndpointsApiExplorer();
-            //services.AddSwaggerGen(); // Cấu hình Swagger để test API
             services.AddSwaggerGen(c =>
             {
-                // 1. Định nghĩa giao diện nút Authorize
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Description = "Vui lòng nhập Token theo định dạng: Bearer {chuỗi_token_của_bạn}",
@@ -159,7 +143,6 @@ namespace HomeServicePlatform.Api
                     Scheme = "Bearer"
                 });
 
-                // 2. Yêu cầu Swagger đính kèm cái Token đó vào mỗi Request
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
                     {
@@ -176,11 +159,6 @@ namespace HomeServicePlatform.Api
                 });
             });
 
-            // 🚦 Rate limiting: chống brute-force / spam ở các endpoint xác thực.
-            //    Policy "auth" = 10 request/phút, phân vùng theo IP client.
-            //    IP thật lấy được nhờ UseForwardedHeaders() đã bật ở đầu pipeline trong Program.cs
-            //    (sau reverse proxy như Render, nếu không có nó thì mọi người dùng chung một IP
-            //    proxy và hạn mức này bị áp cho toàn bộ người dùng cộng lại).
             services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -195,7 +173,6 @@ namespace HomeServicePlatform.Api
                             QueueLimit = 0
                         }));
 
-                // Trả 429 theo đúng khuôn ApiResponse để frontend xử lý đồng nhất.
                 options.OnRejected = async (context, token) =>
                 {
                     context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -212,15 +189,10 @@ namespace HomeServicePlatform.Api
                 };
             });
 
-            // ⏱️ Job nền dọn đơn đặt lịch hết hạn (nhả slot). Thay cho đoạn quét nội tuyến
-            //    trong CreateBooking trước đây.
             services.AddHostedService<BackgroundJobs.ExpiredBookingCleanupService>();
 
-            // 🚀 Output caching cho các endpoint catalog công khai (ít thay đổi) — giảm tải DB.
-            //    Từng endpoint tự khai [OutputCache(...)]; ở đây chỉ bật hạ tầng.
             services.AddOutputCache();
 
-            // Đăng ký SignalR Hub nếu dùng
             services.AddSignalR();
 
             services.AddMediatR(cfg =>

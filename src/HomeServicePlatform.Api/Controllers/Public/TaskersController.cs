@@ -32,7 +32,6 @@ namespace HomeServicePlatform.Api.Controllers.Public
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Danh sách dịch vụ + giá của thợ (cho khách chọn khi đặt lịch).</summary>
         [HttpGet("{id}/services")]
         [AllowAnonymous]
         public async Task<IActionResult> GetTaskerServices(long id)
@@ -41,7 +40,6 @@ namespace HomeServicePlatform.Api.Controllers.Public
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Khung giờ trống của thợ trong một ngày (cho khách chọn lịch hẹn).</summary>
         [HttpGet("{id}/availability")]
         [AllowAnonymous]
         public async Task<IActionResult> GetAvailability(long id, [FromQuery] DateOnly date,
@@ -60,11 +58,6 @@ namespace HomeServicePlatform.Api.Controllers.Public
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Thợ nhận một dịch vụ, sắp theo đánh giá + phân trang "tải thêm" (mặc định 5/trang).
-        /// Truyền <paramref name="provinceCode"/> để chỉ lấy thợ cùng tỉnh với địa chỉ khách đặt;
-        /// truyền lat/lng để mỗi thẻ thợ kèm khoảng cách.
-        /// </summary>
         [HttpGet("by-service/{serviceId:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetTaskersByService(
@@ -80,7 +73,6 @@ namespace HomeServicePlatform.Api.Controllers.Public
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Một thẻ thợ cho dịch vụ — để ghim thợ khách chọn sẵn lên đầu danh sách.</summary>
         [HttpGet("by-service/{serviceId:long}/tasker/{taskerId:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetServiceTaskerCard(

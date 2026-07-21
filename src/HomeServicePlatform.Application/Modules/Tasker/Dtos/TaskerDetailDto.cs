@@ -17,12 +17,10 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Dtos
 
         public decimal RatingAvg { get; set; }
         public int TotalReviews { get; set; }
-        public int TotalJobs { get; set; } // Tổng số công việc đã hoàn thành
+        public int TotalJobs { get; set; }
 
-        // Kỹ năng chuyên môn (Tên các dịch vụ thợ làm)
         public List<string> Skills { get; set; } = new();
 
-        // Chứng chỉ (Placeholder chờ Entity sau này)
         public List<string> Certificates { get; set; } = new();
 
         public ReviewSummaryDto ReviewSummary { get; set; } = new();

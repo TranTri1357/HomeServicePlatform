@@ -22,7 +22,6 @@ namespace HomeServicePlatform.Api.Controllers.Customer
         [HttpPost]
         public async Task<IActionResult> CreateReview(long bookingItemId, [FromBody] CreateReviewCommand command)
         {
-            // Lấy ID khách hàng từ JWT Token đang đăng nhập
             var customerIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(customerIdClaim))
                 return Unauthorized(new { message = "Vui lòng đăng nhập để thực hiện." });

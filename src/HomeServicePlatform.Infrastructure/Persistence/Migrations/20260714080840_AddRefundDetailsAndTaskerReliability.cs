@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class AddRefundDetailsAndTaskerReliability : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<int>(
@@ -75,7 +73,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 column: "booking_id");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(

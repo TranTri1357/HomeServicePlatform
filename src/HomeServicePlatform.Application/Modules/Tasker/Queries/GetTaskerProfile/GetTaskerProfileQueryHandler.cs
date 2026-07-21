@@ -22,7 +22,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfil
 
         public async Task<ApiResponse<TaskerProfileDto>> Handle(GetTaskerProfileQuery request, CancellationToken cancellationToken)
         {
-            // Kết nối tường minh từ TaskerProfiles -> Users (thông qua mối quan hệ 1-1 bằng tasker_profile_id tương ứng user_id)
             var profileQuery = from tp in _context.TaskerProfiles
                                join u in _context.Users on tp.TaskerProfileId equals u.UserId
                                where tp.TaskerProfileId == request.TaskerProfileId && !tp.IsDeleted && !u.IsDeleted
@@ -30,7 +29,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfil
                                {
                                    Profile = tp,
                                    User = u,
-                                   // Đếm số lượng việc làm dựa trên bảng booking_items với điều kiện status = 1 (Thợ đã nhận/hoàn thành việc)
                                    CompletedJobsCount = _context.BookingItems
                                                                 .Count(i => i.TaskerId == tp.TaskerProfileId && i.Status == 1)
                                };

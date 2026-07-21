@@ -23,7 +23,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Commands.ToggleTa
         public async Task<ApiResponse<bool>> Handle(ToggleTaskerStatusCommand request, CancellationToken ct)
         {
             var tasker = await _context.TaskerProfiles
-                .Include(t => t.User) // Include để lấy FullName thông báo cho đẹp
+                .Include(t => t.User)
                 .FirstOrDefaultAsync(t => t.TaskerProfileId == request.TaskerId, ct);
 
             if (tasker == null || tasker.IsDeleted)
@@ -34,7 +34,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Commands.ToggleTa
 
             string message;
 
-            // 1 là Hoạt động, 2 là Bị khóa
             if (tasker.Status == 1)
             {
                 tasker.Status = 2;

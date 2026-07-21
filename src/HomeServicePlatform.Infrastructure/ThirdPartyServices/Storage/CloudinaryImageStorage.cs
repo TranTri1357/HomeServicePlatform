@@ -10,10 +10,6 @@ using Microsoft.Extensions.Options;
 
 namespace HomeServicePlatform.Infrastructure.ThirdPartyServices.Storage
 {
-    /// <summary>
-    /// Cài đặt <see cref="IImageStorage"/> dùng Cloudinary. Tự tối ưu ảnh (giới hạn kích thước,
-    /// tự chọn định dạng/chất lượng) và trả về URL https an toàn để lưu vào DB.
-    /// </summary>
     public class CloudinaryImageStorage : IImageStorage
     {
         private readonly Cloudinary _cloudinary;
@@ -36,7 +32,6 @@ namespace HomeServicePlatform.Infrastructure.ThirdPartyServices.Storage
                 Folder = string.IsNullOrWhiteSpace(folder) ? "misc" : folder,
                 UniqueFilename = true,
                 Overwrite = false,
-                // Tối ưu: giới hạn cạnh dài 1000px (không phóng to ảnh nhỏ), tự chọn chất lượng + định dạng.
                 Transformation = new Transformation().Width(1000).Crop("limit").Quality("auto").FetchFormat("auto")
             };
 

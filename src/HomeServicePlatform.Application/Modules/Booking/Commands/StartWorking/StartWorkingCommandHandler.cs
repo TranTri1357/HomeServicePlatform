@@ -28,7 +28,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.StartWorking
             var booking = await _bookingRepository.GetByIdAsync(request.BookingId);
             if (booking == null) throw new NotFoundException($"Không tìm thấy đơn hàng #{request.BookingId}");
 
-            // 🔒 RÀNG BUỘC: mỗi thợ chỉ được làm 1 việc tại một thời điểm.
             bool hasAnotherInProgress = await _context.BookingItems.AnyAsync(bi =>
                 bi.TaskerId == request.TaskerId
                 && bi.BookingId != request.BookingId

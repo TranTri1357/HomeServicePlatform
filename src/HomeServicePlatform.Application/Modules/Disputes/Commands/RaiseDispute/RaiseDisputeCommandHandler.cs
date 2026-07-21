@@ -19,7 +19,6 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.RaiseDispute
 
         public async Task<ApiResponse<long>> Handle(RaiseDisputeCommand request, CancellationToken ct)
         {
-            // Kiểm tra xem đơn hàng có tồn tại không
             var booking = await _context.Bookings.AnyAsync(b => b.BookingId == request.BookingId, ct);
             if (!booking) throw new NotFoundException($"Không tìm thấy đơn đặt lịch #{request.BookingId}");
 
@@ -31,12 +30,12 @@ namespace HomeServicePlatform.Application.Modules.Disputes.Commands.RaiseDispute
                 BookingId = request.BookingId,
                 RaisedById = request.RaisedById,
                 Reason = request.Reason.Trim(),
-                Status = 0, // 0: Pending (Chờ Admin xử lý)
+                Status = 0,
                 ResolutionNote = null,
                 RefundAmount = null,
                 ResolvedAt = null,
                 CreatedAt = DateTimeOffset.UtcNow,
-                RowVersion = 1 // Khởi tạo phiên
+                RowVersion = 1
             };
 
             _context.Disputes.Add(dispute);

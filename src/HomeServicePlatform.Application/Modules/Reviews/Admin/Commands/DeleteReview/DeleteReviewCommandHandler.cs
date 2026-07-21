@@ -26,7 +26,6 @@ namespace HomeServicePlatform.Application.Modules.Reviews.Admin.Commands.DeleteR
             review.IsDeleted = true;
             review.UpdatedAt = DateTimeOffset.UtcNow;
 
-            // Tính lại điểm trung bình + số đánh giá của thợ từ các đánh giá còn lại.
             var remainingRatings = await _context.Reviews
                 .Where(r => r.TaskerId == review.TaskerId && !r.IsDeleted && r.ReviewId != review.ReviewId)
                 .Select(r => (int)r.Rating)

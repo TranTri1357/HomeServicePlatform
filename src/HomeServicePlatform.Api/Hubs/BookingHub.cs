@@ -9,11 +9,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HomeServicePlatform.Api.Hubs
 {
-    /// <summary>
-    /// Hub theo dõi đơn hàng. Mỗi người dùng đăng nhập tự vào group riêng
-    /// ("user-{id}") khi kết nối để nhận cập nhật trạng thái đơn realtime, và
-    /// vẫn phục vụ streaming vị trí thợ như trước.
-    /// </summary>
     [Authorize]
     public class BookingHub : Hub
     {
@@ -34,11 +29,6 @@ namespace HomeServicePlatform.Api.Hubs
             await base.OnConnectedAsync();
         }
 
-        /// <summary>
-        /// Thợ đẩy vị trí GPS khi đang tới / đang làm. 🔒 Danh tính thợ lấy TỪ TOKEN (không nhận
-        /// providerId từ client → chống giả mạo), và vị trí CHỈ gửi cho khách của đơn thợ đang
-        /// phục vụ (OnTheWay/InProgress) thay vì phát cho tất cả.
-        /// </summary>
         public async Task StreamDriverLocation(double latitude, double longitude)
         {
             if (!TryGetUserId(out var taskerId)) return;

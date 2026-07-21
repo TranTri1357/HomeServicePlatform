@@ -21,9 +21,9 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetPagedPayme
     );
 
     public record GetPagedPaymentsQuery(
-        string? TransactionCode, // Tìm kiếm theo mã giao dịch
-        short? Status,           // Lọc theo trạng thái (0: Chờ, 1: Thành công, 2: Thất bại)
-        short? Method,           // Lọc theo phương thức (VNPAY, Momo, Tiền mặt)
+        string? TransactionCode,
+        short? Status,
+        short? Method,
         int PageIndex = 1,
         int PageSize = 10
     ) : IRequest<ApiResponse<PagedResult<PaymentLookupDto>>>;

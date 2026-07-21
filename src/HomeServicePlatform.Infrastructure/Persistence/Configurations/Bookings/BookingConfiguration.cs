@@ -34,8 +34,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Bookings
 
             entity.HasOne(d => d.Customer).WithMany().HasForeignKey(d => d.CustomerId).HasConstraintName("fk_bookings_customer");
 
-            // Composite phục vụ trang "Đơn của khách": lọc theo customer_id + sắp/keyset theo created_at DESC.
-            // Bao trùm luôn tra cứu theo mình customer_id nên không cần index đơn cột riêng.
             entity.HasIndex(e => new { e.CustomerId, e.CreatedAt }).HasDatabaseName("ix_bookings_customer_created");
             entity.HasIndex(e => e.Status).HasDatabaseName("ix_bookings_status");
 

@@ -19,8 +19,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergen
     public class CancelEmergencyBookingCommandHandler
         : IRequestHandler<CancelEmergencyBookingCommand, ApiResponse<EmergencyCancelResult>>
     {
-        // Vòng quét rộng nhất mà frontend có thể đã nới tới (RADII = 5/10/15km). Khi hủy một đơn
-        // broadcast ta quét lại ở bán kính này để phủ HẾT những thợ có thể đang mở modal.
         private const double MaxBroadcastRadiusKm = 15.0;
 
         private readonly IBookingRepository _bookingRepository;
@@ -45,7 +43,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergen
 
             var taskerId = booking.BookingItems.Select(i => i.TaskerId).FirstOrDefault(id => id != null) ?? 0;
 
-            // Chỉ chủ đơn hoặc thợ được gán mới được hủy.
             if (request.ActorUserId != booking.CustomerId && request.ActorUserId != taskerId)
                 throw new ForbiddenException("Bạn không có quyền hủy đơn này.");
 
@@ -75,14 +72,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergen
                 "Đã hủy đơn khẩn cấp.");
         }
 
-        /// <summary>
-        /// Ai cần được báo "đơn đã hủy" để đóng modal đang kêu chuông?
-        ///  • Đơn đã gán thợ → đúng thợ đó.
-        ///  • Đơn BROADCAST (chưa ai nhận, taskerId = 0) → không có cột nào lưu danh sách đã bắn,
-        ///    nên quét lại thợ đủ điều kiện ở bán kính rộng nhất (15km). Đây là TẬP CHA của những
-        ///    thợ đã nhận broadcast, nên không sót ai; thợ thừa nhận được cũng vô hại vì client bỏ
-        ///    qua nếu bookingId không khớp modal đang mở.
-        /// </summary>
         private async Task<IReadOnlyList<long>> ResolveTaskersToNotifyAsync(
             Domain.Modules.Bookings.Entities.Booking booking, long assignedTaskerId, CancellationToken ct)
         {
@@ -91,14 +80,12 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelEmergen
             var serviceId = booking.BookingItems.Select(i => i.ServiceId).FirstOrDefault();
             if (serviceId == 0) return Array.Empty<long>();
 
-            // GetByIdAsync không nạp sẵn BookingAddress → lấy tọa độ bằng truy vấn riêng.
             var point = await _context.BookingAddresses.AsNoTracking()
                 .Where(a => a.BookingId == booking.BookingId && a.Geom != null)
                 .Select(a => new { Lat = a.Geom!.Y, Lng = a.Geom.X })
                 .FirstOrDefaultAsync(ct);
             if (point == null) return Array.Empty<long>();
 
-            // Thợ đã bấm từ chối thì modal của họ đã đóng — không cần báo nữa.
             var declinedTaskerIds = await _context.EmergencyBookingDeclines
                 .AsNoTracking()
                 .Where(d => d.BookingId == booking.BookingId && !d.WasTimeout)

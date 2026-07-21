@@ -13,7 +13,7 @@ namespace HomeServicePlatform.Api.Controllers.Common
 {
     [Route("api/[controller]")]
     [ApiController]
-    [EnableRateLimiting("auth")] // 🚦 Chống brute-force/spam: 10 request/phút/IP cho các endpoint xác thực
+    [EnableRateLimiting("auth")]
     public class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -51,7 +51,6 @@ namespace HomeServicePlatform.Api.Controllers.Common
             return StatusCode(result.StatusCode, result);
         }
 
-        // 🔐 Đổi mật khẩu khi ĐÃ ĐĂNG NHẬP. UserId lấy từ token, chống giả mạo.
         [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
@@ -64,7 +63,7 @@ namespace HomeServicePlatform.Api.Controllers.Common
                 return Unauthorized();
 
             var securedCommand = command;
-            securedCommand.UserId = userId; // đè UserId từ token
+            securedCommand.UserId = userId;
 
             var result = await _mediator.Send(securedCommand);
             return StatusCode(result.StatusCode, result);

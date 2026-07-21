@@ -14,6 +14,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetNearb
         public long ServiceId { get; set; }
         public double CustomerLat { get; set; }
         public double CustomerLng { get; set; }
-        public double RadiusKm { get; set; } = 10; // Mặc định 10km
+        public double RadiusKm { get; set; } = 10;
     }
 }

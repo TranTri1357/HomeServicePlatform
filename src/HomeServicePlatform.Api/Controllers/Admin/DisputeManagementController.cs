@@ -11,7 +11,7 @@ namespace HomeServicePlatform.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/disputes")]
-    [Authorize(Roles = "Admin,SuperAdmin")] // Đồng nhất quyền với các trang quản trị khác
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public class AdminDisputeController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -37,7 +37,6 @@ namespace HomeServicePlatform.Api.Controllers.Admin
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> Resolve([FromRoute] long id, [FromBody] ResolveDisputeCommand command)
         {
-            // Bảo mật Id-Spoofing: Ép ID từ tuyến đường URL vào Record
             var securedCommand = command with { DisputeId = id };
 
             var result = await _mediator.Send(securedCommand);

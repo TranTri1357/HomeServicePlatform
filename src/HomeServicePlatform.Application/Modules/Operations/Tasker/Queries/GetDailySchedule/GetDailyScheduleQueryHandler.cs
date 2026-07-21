@@ -32,7 +32,6 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Queries.GetD
             var startOfDay = new DateTimeOffset(request.Date.Year, request.Date.Month, request.Date.Day, 0, 0, 0, TimeSpan.FromHours(7));
             var endOfDay = startOfDay.AddDays(1);
 
-            // ÉP SANG GIỜ UTC
             var startOfDayUtc = startOfDay.ToUniversalTime();
             var endOfDayUtc = endOfDay.ToUniversalTime();
 

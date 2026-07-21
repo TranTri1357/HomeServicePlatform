@@ -38,7 +38,6 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.UpdateAddres
             if (request.Latitude.HasValue && request.Longitude.HasValue)
                 address.Geom = _geometryFactory.CreatePoint(new Coordinate(request.Longitude.Value, request.Latitude.Value));
 
-            // Nếu đặt làm mặc định thì gỡ mặc định ở các địa chỉ khác.
             if (request.IsDefault && address.IsDefault != true)
             {
                 var others = await _context.Addresses
@@ -48,7 +47,6 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.UpdateAddres
                 address.IsDefault = true;
             }
 
-            // Thợ: nếu đang sửa chính địa chỉ mặc định → đồng bộ vị trí trên bản đồ.
             if (address.IsDefault == true)
                 await TaskerLocationSync.SyncFromDefaultAsync(_context, request.CustomerId, address.Geom, ct);
 

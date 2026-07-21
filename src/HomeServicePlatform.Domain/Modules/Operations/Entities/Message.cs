@@ -4,10 +4,6 @@ using HomeServicePlatform.Domain.Modules.Identity.Entities;
 
 namespace HomeServicePlatform.Domain.Modules.Operations.Entities
 {
-    /// <summary>
-    /// Tin nhắn chat trong ngữ cảnh một đơn đặt lịch (hội thoại giữa Khách và Thợ).
-    /// Một "cuộc trò chuyện" = toàn bộ Message có cùng BookingId.
-    /// </summary>
     public class Message
     {
         public long MessageId { get; set; }

@@ -27,7 +27,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobsPa
             var pageSize = request.PageSize < 1 ? 10 : (request.PageSize > 50 ? 50 : request.PageSize);
             var taskerId = request.TaskerId;
 
-            // Chỉ đơn có hạng mục giao cho thợ này VÀ đã "chốt" (đã thanh toán, hoặc tiền mặt trả khi xong).
             var query = _context.Bookings
                 .AsNoTracking()
                 .Where(b => b.BookingItems.Any(i => i.TaskerId == taskerId)
@@ -57,12 +56,11 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobsPa
             var totalCount = await query.CountAsync(ct);
 
             var items = await query
-                .OrderByDescending(b => b.BookingId) // Đơn mới nhất lên đầu
+                .OrderByDescending(b => b.BookingId)
                 .Skip((pageIndex - 1) * pageSize)
                 .Take(pageSize)
                 .Select(b => new TaskerJobGroupDto(
                     b.BookingId,
-                    // Ưu tiên thông tin liên hệ khách nhập lúc đặt lịch (BookingAddress), fallback tài khoản khách.
                     _context.BookingAddresses.Where(a => a.BookingId == b.BookingId).Select(a => a.FullName).FirstOrDefault()
                         ?? (b.Customer != null ? b.Customer.FullName : "Khách hàng"),
                     _context.BookingAddresses.Where(a => a.BookingId == b.BookingId).Select(a => a.Phone).FirstOrDefault()
@@ -70,7 +68,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobsPa
                     _context.BookingAddresses.Where(a => a.BookingId == b.BookingId).Select(a => a.AddressLine).FirstOrDefault()
                         ?? "Chưa cập nhật địa chỉ",
                     (short)b.Status,
-                    // Giờ bắt đầu sớm nhất + tổng tiền CHỈ tính hạng mục của thợ này trong đơn.
                     _context.BookingItems.Where(i => i.BookingId == b.BookingId && i.TaskerId == taskerId)
                         .Min(i => (System.DateTimeOffset?)i.StartAt) ?? default,
                     _context.BookingItems.Where(i => i.BookingId == b.BookingId && i.TaskerId == taskerId)

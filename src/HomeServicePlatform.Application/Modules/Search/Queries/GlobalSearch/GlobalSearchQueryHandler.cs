@@ -22,21 +22,18 @@ namespace HomeServicePlatform.Application.Modules.Search.Queries.GlobalSearch
 
             var keyword = request.Keyword.ToLower();
 
-            // Tìm Danh mục
             var categories = await _context.Categories
                 .Where(x => x.Name.ToLower().Contains(keyword) && !x.IsDeleted && x.IsActive == true)
                 .OrderBy(x => x.Name)
                 .Select(x => new CategoryResult(x.CategoryId, x.Name, x.IconUrl ?? ""))
                 .Take(5).ToListAsync(ct);
 
-            // Tìm Dịch vụ
             var services = await _context.Services
                 .Where(x => x.Name.ToLower().Contains(keyword) && x.IsActive && !x.IsDeleted)
                 .OrderBy(x => x.Name)
                 .Select(x => new ServiceResult(x.ServiceId, x.Name))
                 .Take(5).ToListAsync(ct);
 
-            // Tìm Thợ
             var taskers = await _context.TaskerProfiles
                 .AsNoTracking()
                 .Where(x => x.User.FullName.ToLower().Contains(keyword) && !x.IsDeleted)

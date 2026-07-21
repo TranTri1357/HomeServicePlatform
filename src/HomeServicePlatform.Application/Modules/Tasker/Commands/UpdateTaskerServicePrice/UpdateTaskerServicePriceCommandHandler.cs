@@ -22,9 +22,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.UpdateTaskerSe
 
         public async Task<ApiResponse<bool>> Handle(UpdateTaskerServicePriceCommand request, CancellationToken cancellationToken)
         {
-            // Tìm bản ghi giá đang kích hoạt của thợ cho dịch vụ cụ thể này.
-            // 💰 Dùng chung định nghĩa "đang hiệu lực" ở TaskerPriceQuery để đường GHI và
-            //    đường ĐỌC (tính tiền đơn) không bao giờ hiểu khác nhau về dòng giá hiện hành.
             var currentPrice = await _context.TaskerServicePrices
                 .Where(p => p.TaskerId == request.TaskerId && p.ServiceId == request.ServiceId)
                 .ActiveAt(DateTimeOffset.UtcNow)
@@ -33,9 +30,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Commands.UpdateTaskerSe
             if (currentPrice == null)
                 throw new NotFoundException("Không tìm thấy cấu hình bảng giá đang hoạt động của thợ này.");
 
-            // Cập nhật trực tiếp trên dòng cũ theo yêu cầu
             currentPrice.Price = request.NewPrice;
-            currentPrice.EffectiveFrom = DateTimeOffset.UtcNow; // Cập nhật lại thời gian bắt đầu áp dụng giá mới
+            currentPrice.EffectiveFrom = DateTimeOffset.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
             return ApiResponse<bool>.Success(true, "Cập nhật giá và thời gian hiệu lực dịch vụ thành công.");

@@ -22,8 +22,6 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetPop
 
         public async Task<ApiResponse<List<PopularServiceDto>>> Handle(GetPopularServicesQuery request, CancellationToken cancellationToken)
         {
-            // Chốt một mốc thời gian cho cả truy vấn: nếu để DateTimeOffset.UtcNow nằm trong
-            // biểu thức thì mỗi lần lượng giá lại ra một mốc khác nhau.
             var now = DateTimeOffset.UtcNow;
 
             var popularServices = await _context.Services
@@ -36,8 +34,6 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetPop
 
                     TotalBookings = s.BookingItems.Count(),
 
-                    // Tìm giá khởi điểm (MIN Price) trong các mức giá ĐANG hiệu lực.
-                    // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: giới hạn EF trong Select).
                     StartingPrice = s.TaskerServicePrices
                         .Where(p => p.EffectiveFrom <= now && (p.EffectiveTo == null || p.EffectiveTo > now))
                         .Min(p => (decimal?)p.Price) ?? 0,

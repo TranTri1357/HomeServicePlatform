@@ -8,8 +8,8 @@ namespace HomeServicePlatform.Domain.Modules.Payments.Enum
 {
     public enum PaymentMethod : short
     {
-        Wallet = 1,      // Ví trong hệ thống
-        Cash = 2,        // Tiền mặt
+        Wallet = 1,
+        Cash = 2,
         Momo = 3,
         ZaloPay = 4
     }

@@ -4,14 +4,10 @@
 
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class ServiceNameTrigramLowerIndex : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Thay index GIN trigram trên name bằng functional index trên lower(name)
-            // để truy vấn "lower(name) LIKE '%...%'" (tìm không phân biệt hoa/thường) dùng được index.
             migrationBuilder.DropIndex(
                 name: "ix_services_name_trgm",
                 table: "services");
@@ -20,7 +16,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 "CREATE INDEX ix_services_name_trgm ON services USING gin (lower(name) gin_trgm_ops);");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateIndex(

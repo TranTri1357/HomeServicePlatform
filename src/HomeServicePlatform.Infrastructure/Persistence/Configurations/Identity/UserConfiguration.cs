@@ -37,30 +37,10 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Configurations.Identity
             SeedSystemAccounts(entity);
         }
 
-        /// <summary>
-        /// Hai user "kỹ thuật" làm chủ sở hữu của ví ký quỹ và ví doanh thu (bảng wallets có
-        /// khóa ngoại 1-1 sang users nên ví hệ thống buộc phải có chủ).
-        ///
-        /// 🛡️ Không thể đăng nhập, theo ba lớp:
-        ///   1. IsDeleted = true  -> truy vấn đăng nhập lọc "!IsDeleted" nên không bao giờ tìm thấy
-        ///      (đồng thời ẩn khỏi mọi danh sách người dùng và khỏi unique index lọc is_deleted).
-        ///   2. Status = 0        -> trạng thái khóa.
-        ///      ⚠️ 0 trùng giá trị mặc định của kiểu short nên EF BỎ cột "status" khỏi lệnh
-        ///      INSERT sinh ra từ HasData, mà cột lại có HasDefaultValue((short)1) => nếu không
-        ///      can thiệp, hai tài khoản này ra đời ở trạng thái ĐANG HOẠT ĐỘNG. Giá trị 0 đã
-        ///      được ghi tay vào migration AddSystemWalletsAndLedgerNote. Nếu sau này scaffold
-        ///      lại migration seed cho hai user này, PHẢI thêm cột "status" bằng tay lần nữa.
-        ///   3. PasswordHash là chuỗi BCrypt đúng định dạng nhưng không ứng với mật khẩu nào.
-        /// Hai tài khoản này cũng không được gán UserRole nào nên không mang quyền gì.
-        /// </summary>
         private static void SeedSystemAccounts(EntityTypeBuilder<User> entity)
         {
-            // Mốc thời gian cố định: HasData yêu cầu giá trị tất định, nếu dùng DateTimeOffset.UtcNow
-            // thì mỗi lần scaffold migration sẽ sinh ra thay đổi giả.
             var seededAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-            // BCrypt hợp lệ về cú pháp (cost 11 + salt 22 ký tự + hash 31 ký tự) nhưng không phải
-            // hash của mật khẩu nào -> Verify trả về false thay vì ném lỗi phân tích salt.
             const string unusableHash = "$2a$11$SystemAccountNoLogin00abcdefghijklmnopqrstuvwxyz01234";
 
             entity.HasData(

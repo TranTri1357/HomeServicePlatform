@@ -10,8 +10,8 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Dtos
     {
         public long NotificationId { get; set; }
         public short Type { get; set; }
-        public string? Payload { get; set; } // Chứa chuỗi JSON (Title, Body, Data liên kết)
-        public bool IsRead { get; set; } // Dịch từ Status sang bool cho Frontend dễ dùng
+        public string? Payload { get; set; }
+        public bool IsRead { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
     }
 }

@@ -32,12 +32,11 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetTopTa
                 {
                     TaskerId = t.TaskerProfileId,
                     FullName = t.User.FullName,
-                    AvatarUrl = null, // Chờ cập nhật logic lưu file
+                    AvatarUrl = null,
                     RatingAvg = t.RatingAvg,
                     TotalReviews = t.TotalReviews,
                     IsVerified = t.IsVerified,
 
-                    // Lấy ngẫu nhiên 1 dịch vụ (Service) mà thợ đang làm để gán làm "Chuyên môn chính"
                     MainSkill = t.TaskerServices
                                  .Where(ts => ts.Service.IsActive && !ts.Service.IsDeleted)
                                  .Select(ts => ts.Service.Name)

@@ -18,7 +18,7 @@ namespace HomeServicePlatform.Application.Modules.Operations.Tasker.Commands.Upd
 
     public class DailyScheduleInput
     {
-        public short DayOfWeek { get; set; } // 0: Chủ nhật, 1: Thứ 2, ..., 6: Thứ 7
+        public short DayOfWeek { get; set; }
         public TimeOnly StartTime { get; set; }
         public TimeOnly EndTime { get; set; }
     }

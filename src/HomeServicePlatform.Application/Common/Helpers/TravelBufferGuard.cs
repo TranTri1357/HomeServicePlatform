@@ -10,14 +10,6 @@ using NetTopologySuite.Geometries;
 
 namespace HomeServicePlatform.Application.Common.Helpers
 {
-    /// <summary>
-    /// Bộ kiểm tra "thời gian đệm di chuyển" ở tầng ứng dụng: đảm bảo thợ kịp di chuyển
-    /// từ đơn liền trước tới địa điểm đơn mới (và từ đơn mới tới đơn liền sau).
-    ///
-    /// Đây là tầng buffer ĐỘNG theo khoảng cách (mạnh hơn sàn cứng của ràng buộc CSDL).
-    /// Gọi trong transaction SAU khi đã giữ advisory lock theo thợ để tránh hai đơn đồng thời
-    /// cùng lọt qua (chống double-booking có tính tới quãng đường).
-    /// </summary>
     public static class TravelBufferGuard
     {
 
@@ -27,10 +19,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
             public Point? Geom { get; set; }
         }
 
-        /// <summary>
-        /// Ném <see cref="BadRequestException"/> nếu khoảng trống tới đơn liền trước/sau của thợ
-        /// nhỏ hơn thời gian đệm cần để di chuyển tới/từ địa điểm đơn mới.
-        /// </summary>
         public static async Task EnsureTravelFeasibleAsync(
             IApplicationDbContext context,
             BufferPolicyOptions options,
@@ -43,8 +31,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
         {
             var freshHoldSince = BookingSlotOccupancy.FreshHoldSince(DateTimeOffset.UtcNow);
 
-            // Đơn liền TRƯỚC: đơn đang chiếm khung giờ (xem BookingSlotOccupancy) kết thúc muộn
-            // nhất mà vẫn không muộn hơn giờ bắt đầu đơn mới.
             var prev = await context.BookingItems.AsNoTracking()
                 .Where(b => b.TaskerId == taskerId && b.EndAt <= startAt)
                 .Where(BookingSlotOccupancy.Occupying(freshHoldSince))
@@ -66,7 +52,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
                         $"Vui lòng chọn khung giờ bắt đầu từ {ToVn(prev.At.AddMinutes(buffer)):HH:mm} trở đi.");
             }
 
-            // Đơn liền SAU: đơn đang chiếm khung giờ bắt đầu sớm nhất mà không sớm hơn giờ kết thúc đơn mới.
             var next = await context.BookingItems.AsNoTracking()
                 .Where(b => b.TaskerId == taskerId && b.StartAt >= endAt)
                 .Where(BookingSlotOccupancy.Occupying(freshHoldSince))
@@ -89,7 +74,6 @@ namespace HomeServicePlatform.Application.Common.Helpers
             }
         }
 
-        // Đổi mốc UTC sang giờ VN (UTC+7) để thông báo cho khách dễ đọc.
         private static DateTimeOffset ToVn(DateTimeOffset utc) => utc.ToOffset(TimeSpan.FromHours(7));
     }
 }

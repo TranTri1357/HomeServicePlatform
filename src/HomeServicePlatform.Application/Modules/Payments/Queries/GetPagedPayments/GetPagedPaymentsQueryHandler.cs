@@ -20,7 +20,6 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetPagedPayme
         {
             var query = _context.Payments.AsNoTracking();
 
-            // 1. Áp dụng các bộ lọc động
             if (request.Status.HasValue)
             {
                 query = query.Where(x => x.Status == request.Status.Value);
@@ -34,16 +33,11 @@ namespace HomeServicePlatform.Application.Modules.Payments.Queries.GetPagedPayme
             if (!string.IsNullOrWhiteSpace(request.TransactionCode))
             {
                 string code = request.TransactionCode.Trim();
-                // TransactionCode nullable: đơn tiền mặt/đơn chưa qua cổng chưa có mã.
-                // Thiếu vế kiểm null thì lọc theo mã sẽ ném NullReferenceException -> trang
-                // quản lý thanh toán trả 500 ngay khi admin gõ vào ô tìm kiếm.
                 query = query.Where(x => x.TransactionCode != null && x.TransactionCode.Contains(code));
             }
 
-            // 2. Tính tổng số lượng dòng
             int totalCount = await query.CountAsync(ct);
 
-            // 3. Phân trang và map về Flat DTO
             var items = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((PageSizeGuard.ClampIndex(request.PageIndex) - 1) * PageSizeGuard.Clamp(request.PageSize))

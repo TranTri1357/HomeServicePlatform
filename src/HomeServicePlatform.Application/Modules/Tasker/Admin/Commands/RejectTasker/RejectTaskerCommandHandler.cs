@@ -26,9 +26,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Admin.Commands.RejectTa
             if (tasker == null || tasker.IsDeleted)
                 throw new NotFoundException("Không tìm thấy hồ sơ thợ hoặc hồ sơ đã bị xóa.");
 
-            // Từ chối CHỈ áp cho hồ sơ đang chờ duyệt. Thợ đã hoạt động (1) / tạm nghỉ (3) thì
-            // dùng chức năng Khóa; đã từ chối rồi (4) thì khỏi từ chối lại. Tách bạch hai trục
-            // "duyệt/từ chối" (cho hồ sơ chờ) và "khóa/mở" (cho thợ đã duyệt).
             if (tasker.Status != 0)
                 throw new BadRequestException("Chỉ có thể từ chối hồ sơ đang ở trạng thái chờ duyệt.");
 

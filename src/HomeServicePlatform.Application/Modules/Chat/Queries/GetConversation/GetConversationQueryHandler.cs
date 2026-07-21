@@ -30,8 +30,6 @@ namespace HomeServicePlatform.Application.Modules.Chat.Queries.GetConversation
             if (booking == null)
                 throw new NotFoundException($"Không tìm thấy đơn #{request.BookingId}.");
 
-            // Người tham gia = khách của đơn HOẶC thợ được gán ở một hạng mục.
-            // Lưu ý: TaskerProfileId (= BookingItem.TaskerId) chính là UserId của thợ.
             bool isCustomer = booking.CustomerId == request.UserId;
             bool isTasker = await _context.BookingItems
                 .AnyAsync(bi => bi.BookingId == request.BookingId && bi.TaskerId == request.UserId, ct);

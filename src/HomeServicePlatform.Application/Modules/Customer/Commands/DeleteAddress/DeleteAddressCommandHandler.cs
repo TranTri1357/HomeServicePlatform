@@ -29,7 +29,6 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.DeleteAddres
             bool wasDefault = address.IsDefault == true;
             _context.Addresses.Remove(address);
 
-            // Nếu xóa địa chỉ mặc định, đưa một địa chỉ còn lại lên làm mặc định.
             if (wasDefault)
             {
                 var next = await _context.Addresses

@@ -29,17 +29,12 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
             var pageSize = PageSizeGuard.Clamp(request.PageSize, max: 50, @default: 5);
             var now = DateTimeOffset.UtcNow;
 
-            // Cùng bộ lọc với top-5 trong GetServiceDetail: thợ đang hoạt động, hồ sơ chưa xóa,
-            // có nhận đúng dịch vụ này.
             var query = _context.TaskerServices
                 .AsNoTracking()
                 .Where(ts => ts.ServiceId == request.ServiceId
                              && !ts.TaskerProfile.IsDeleted
                              && ts.TaskerProfile.Status == 1);
 
-            // 📍 Lọc theo tỉnh/thành của địa chỉ khách đang đặt: chỉ giữ thợ có ÍT NHẤT một
-            // địa chỉ cùng tỉnh. Dịch sang EXISTS nên phân trang vẫn đếm đúng.
-            // Thợ chưa khai địa chỉ sẽ bị loại — đúng ý: không thể khẳng định họ ở gần khách.
             if (!string.IsNullOrWhiteSpace(request.ProvinceCode))
             {
                 var provinceCode = request.ProvinceCode!.Trim();
@@ -49,9 +44,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
 
             var totalCount = await query.CountAsync(ct);
 
-            // ⚠️ SORT PHẢI ỔN ĐỊNH cho phân trang: chỉ theo RatingAvg thì các thợ CÙNG điểm
-            // (vd nhiều thợ 0★ / cùng rating) sẽ xáo trộn giữa các trang → trùng hoặc sót khi
-            // "tải thêm". Thêm khóa phụ TotalReviews rồi TaskerId để thứ tự là duy nhất.
             var items = await query
                 .OrderByDescending(ts => ts.TaskerProfile.RatingAvg)
                 .ThenByDescending(ts => ts.TaskerProfile.TotalReviews)
@@ -66,7 +58,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
                     RatingAvg = ts.TaskerProfile.RatingAvg,
                     AvatarUrl = null,
 
-                    // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt: giá đang hiệu lực của thợ cho dịch vụ này.
                     CurrentPrice = ts.TaskerProfile.TaskerServicePrices
                         .Where(p => p.ServiceId == request.ServiceId
                                     && p.EffectiveFrom <= now
@@ -77,8 +68,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Public.Queries.GetServi
                 })
                 .ToListAsync(ct);
 
-            // 📍 Gắn khu vực + khoảng cách cho đúng trang vừa lấy (1 truy vấn phụ, tối đa
-            // pageSize thợ). Không lồng vào Select ở trên để SQL còn dễ đọc và dễ dịch.
             var locations = await TaskerLocationResolver.LoadAsync(
                 _context, items.Select(i => i.TaskerId).ToList(), ct);
 

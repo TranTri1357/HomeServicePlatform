@@ -27,7 +27,6 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                 .AsNoTracking()
                 .Where(s => s.IsActive && !s.IsDeleted);
 
-            // Chốt một mốc thời gian cho cả truy vấn (xem ghi chú ở GetPopularServices).
             var now = DateTimeOffset.UtcNow;
 
             if (request.CategoryId.HasValue)
@@ -35,8 +34,6 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
-                // Sinh SQL: lower(name) LIKE '%kw%' — khớp GIN trigram functional index
-                // ix_services_name_trgm trên lower(name) (không quét toàn bảng).
                 var keyword = request.SearchTerm.Trim().ToLower();
                 query = query.Where(s => s.Name.ToLower().Contains(keyword));
             }
@@ -48,12 +45,9 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
                 Description = s.Description,
                 DurationMinutes = s.DurationMinutes,
                 TotalBookings = s.BookingItems.Count(),
-                // 💰 Đồng bộ với TaskerPriceQuery.IsActiveAt (viết thẳng: giới hạn EF trong Select).
                 StartingPrice = s.TaskerServicePrices
                     .Where(p => p.EffectiveFrom <= now && (p.EffectiveTo == null || p.EffectiveTo > now))
                     .Min(p => (decimal?)p.Price) ?? 0,
-                // Phương án (a): TB rating của các thợ cung cấp dịch vụ này, chỉ tính thợ
-                // ĐÃ có đánh giá (TotalReviews > 0) để RatingAvg=0 (chưa có) không kéo điểm.
                 AvgRating = s.TaskerServices
                     .Where(ts => !ts.TaskerProfile.IsDeleted && ts.TaskerProfile.TotalReviews > 0)
                     .Select(ts => (decimal?)ts.TaskerProfile.RatingAvg)

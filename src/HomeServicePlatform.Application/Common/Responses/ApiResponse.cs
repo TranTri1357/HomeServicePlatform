@@ -14,7 +14,6 @@ namespace HomeServicePlatform.Application.Common.Responses
         public T? Data { get; set; }
         public List<string>? Errors { get; set; }
 
-        // Hàm nhanh trả về thành công (Mặc định HTTP 200 - OK)
         public static ApiResponse<T> Success(T data, string message = "Thành công", int statusCode = 200)
             => new()
             {
@@ -24,7 +23,6 @@ namespace HomeServicePlatform.Application.Common.Responses
                 Message = message
             };
 
-        // Hàm nhanh trả về thất bại với danh sách lỗi (Mặc định HTTP 400 - Bad Request)
         public static ApiResponse<T> Failure(List<string> errors, string message = "Có lỗi xảy ra", int statusCode = 400)
             => new()
             {
@@ -34,7 +32,6 @@ namespace HomeServicePlatform.Application.Common.Responses
                 Message = message
             };
 
-        // Hàm nhanh trả về thất bại với 1 lỗi duy nhất (Mặc định HTTP 400 - Bad Request)
         public static ApiResponse<T> Failure(string error, string message = "Có lỗi xảy ra", int statusCode = 400)
             => new()
             {

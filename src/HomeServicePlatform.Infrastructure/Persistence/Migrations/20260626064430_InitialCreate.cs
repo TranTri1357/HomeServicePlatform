@@ -7,10 +7,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterDatabase()
@@ -892,11 +890,7 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 unique: true);
 
 
-            // =========================================================================
-            // CODE BỔ SUNG THỦ CÔNG: NẠP FUNCTIONS, TRIGGERS VÀ EXCLUDE CONSTRAINTS
-            // =========================================================================
 
-            // 1. Tạo hàm tự động tăng row_version và updated_at cho OCC
             migrationBuilder.Sql(@"
                 CREATE OR REPLACE FUNCTION update_modified_and_version() 
                 RETURNS TRIGGER AS $$ 
@@ -915,7 +909,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 $$ LANGUAGE plpgsql;
             ");
 
-            // 2. Tạo hàm kiểm tra đặc quyền tạo tranh chấp (Raised_by)
             migrationBuilder.Sql(@"
                 CREATE OR REPLACE FUNCTION validate_dispute_raised_by()
                 RETURNS TRIGGER AS $$
@@ -935,17 +928,14 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
                 $$ LANGUAGE plpgsql;
             ");
 
-            // 3. Đăng ký tự động kích hoạt Trigger lên 8 bảng cốt lõi khi có hành động UPDATE
             string[] tables = { "users", "bookings", "booking_items", "payments", "disputes", "categories", "services", "reviews" };
             foreach (var table in tables)
             {
                 migrationBuilder.Sql($"CREATE TRIGGER trg_update_{table} BEFORE UPDATE ON {table} FOR EACH ROW EXECUTE PROCEDURE update_modified_and_version();");
             }
 
-            // 4. Đăng ký Trigger kiểm tra tranh chấp trước khi INSERT hoặc UPDATE vào bảng disputes
             migrationBuilder.Sql("CREATE TRIGGER trg_validate_dispute_raised_by BEFORE INSERT OR UPDATE ON disputes FOR EACH ROW EXECUTE FUNCTION validate_dispute_raised_by();");
 
-            // 5. Cài đặt EXCLUDE CONSTRAINT dữ liệu không gian (Ngăn chặn Thợ bị trùng lịch nghỉ hoặc lịch làm việc)
             migrationBuilder.Sql(@"
                 ALTER TABLE tasker_time_offs 
                 ADD CONSTRAINT exclude_tasker_time_overlap 
@@ -959,29 +949,21 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Migrations
             ");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
 
-            // =========================================================================
-            // CODE BỔ SUNG THỦ CÔNG: DỌN DẸP TRIGGERS VÀ FUNCTIONS KHI ROLLBACK
-            // =========================================================================
 
-            // 1. Xóa các Exclude Constraints trước
             migrationBuilder.Sql("ALTER TABLE booking_items DROP CONSTRAINT IF EXISTS exclude_tasker_work_overlap;");
             migrationBuilder.Sql("ALTER TABLE tasker_time_offs DROP CONSTRAINT IF EXISTS exclude_tasker_time_overlap;");
 
-            // 2. Xóa Trigger kiểm tra tranh chấp
             migrationBuilder.Sql("DROP TRIGGER IF EXISTS trg_validate_dispute_raised_by ON disputes;");
 
-            // 3. Xóa Trigger OCC trên 8 bảng
             string[] tables = { "users", "bookings", "booking_items", "payments", "disputes", "categories", "services", "reviews" };
             foreach (var table in tables)
             {
                 migrationBuilder.Sql($"DROP TRIGGER IF EXISTS trg_update_{table} ON {table};");
             }
 
-            // 4. Xóa các hàm bổ trợ
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS validate_dispute_raised_by() CASCADE;");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS update_modified_and_version() CASCADE;");
 

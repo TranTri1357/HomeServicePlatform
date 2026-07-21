@@ -20,7 +20,6 @@ namespace HomeServicePlatform.Application.Modules.Chat.Commands.MarkConversation
 
         public async Task<ApiResponse<bool>> Handle(MarkConversationReadCommand request, CancellationToken ct)
         {
-            // Đánh dấu đã đọc các tin do phía bên kia gửi (SenderId != mình).
             var unread = await _context.Messages
                 .Where(m => m.BookingId == request.BookingId
                             && m.SenderId != request.UserId

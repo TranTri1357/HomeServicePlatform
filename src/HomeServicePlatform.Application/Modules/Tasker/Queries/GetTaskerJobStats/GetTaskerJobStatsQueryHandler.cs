@@ -22,7 +22,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerJobSta
         {
             var taskerId = request.TaskerId;
 
-            // Cùng điều kiện "chốt" như danh sách việc: đơn có hạng mục của thợ + đã thanh toán/tiền mặt.
             var baseQuery = _context.Bookings
                 .AsNoTracking()
                 .Where(b => b.BookingItems.Any(i => i.TaskerId == taskerId)

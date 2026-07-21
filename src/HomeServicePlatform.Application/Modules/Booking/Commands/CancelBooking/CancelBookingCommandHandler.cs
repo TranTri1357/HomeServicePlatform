@@ -17,10 +17,6 @@ using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
 {
-    /// <summary>
-    /// Thợ hủy đơn đã nhận (khuyết điểm thầy nêu: "luồng thợ hủy phút chót").
-    /// Khách được hoàn 100% khoản đã thu; thợ bị +1 CancelCount và tự khóa nếu vượt ngưỡng.
-    /// </summary>
     public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand, ApiResponse<bool>>
     {
         private readonly IApplicationDbContext _context;
@@ -46,12 +42,10 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
             if (booking == null)
                 throw new NotFoundException($"Không tìm thấy đơn đặt lịch số #{request.BookingId}");
 
-            // 🔒 Chỉ thợ ĐƯỢC GÁN vào đơn mới được hủy đơn đó.
             var isAssigned = booking.BookingItems.Any(bi => bi.TaskerId == request.TaskerId);
             if (!isAssigned)
                 throw new ForbiddenException("Bạn không phụ trách đơn này nên không thể hủy.");
 
-            // Thợ chỉ được hủy khi đã nhận và chưa hoàn thành (Accepted/OnTheWay/InProgress).
             if (booking.Status != BookingStatus.Accepted
                 && booking.Status != BookingStatus.OnTheWay
                 && booking.Status != BookingStatus.InProgress)
@@ -65,12 +59,10 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
 
             var now = DateTimeOffset.UtcNow;
 
-            // Thợ hủy -> chính sách trả 100% cho khách (scheduledAt không ảnh hưởng).
             var decision = RefundPolicy.Calculate(
                 booking.Status, null, now, RefundInitiator.Tasker,
                 totalPaid, booking.FinalAmount, _bookingPolicy.DepositPercent, _policy);
 
-            // Cập nhật trạng thái đơn + hạng mục + Audit Trail (ChangedBy = thợ).
             short oldStatus = (short)booking.Status;
             booking.Status = BookingStatus.Cancelled;
             booking.UpdatedAt = now;
@@ -89,7 +81,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                 CreatedAt = now
             });
 
-            // 💸 Hoàn 100% cho khách (không phí, không đền thợ).
             var outcome = await RefundExecutor.IssueRefundAsync(
                 _context, booking,
                 decision.RefundAmount, 0m,
@@ -97,10 +88,8 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                 $"Thợ hủy đơn: {request.CancelReason}",
                 now, ct);
 
-            // 📉 Hạ độ tin cậy của thợ + tự khóa tài khoản nếu bỏ đơn quá nhiều lần.
             await PenalizeTaskerAsync(request.TaskerId, ct);
 
-            // 🔔 Báo khách: thợ hủy + số tiền hoàn.
             _context.Notifications.Add(NotificationBuilder.Build(
                 booking.CustomerId,
                 NotificationType.BookingCancelledByTasker,
@@ -124,8 +113,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
                     : "Đã hủy đơn.");
         }
 
-        // Tăng CancelCount (đếm SẠCH: chỉ tính lần thợ chủ động BỎ đơn ĐÃ NHẬN — từ chối
-        // đơn khẩn KHÔNG gọi hàm này nên không bị phạt) và tự khóa TÀI KHOẢN khi vượt ngưỡng.
         private async Task PenalizeTaskerAsync(long taskerId, CancellationToken ct)
         {
             var profile = await _context.TaskerProfiles.FirstOrDefaultAsync(t => t.TaskerProfileId == taskerId, ct);
@@ -133,8 +120,6 @@ namespace HomeServicePlatform.Application.Modules.Booking.Commands.CancelBooking
 
             profile.RecordCancellation();
 
-            // Chạm ngưỡng -> KHÓA TÀI KHOẢN: User.Status = 0 (giống Admin khóa tài khoản,
-            // chặn đăng nhập). Không đụng tasker_profile.Status (vốn là cờ sẵn sàng nhận việc).
             if (profile.CancelCount >= _policy.TaskerCancelSuspendThreshold)
             {
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == taskerId, ct);

@@ -18,13 +18,11 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Common
             _context = context;
         }
 
-        // Thực hiện lưu tất cả thay đổi vào DB
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             return await _context.SaveChangesAsync(cancellationToken);
         }
 
-        // Quản lý Transaction nâng cao (Nếu cần dùng)
         public async Task BeginTransactionAsync()
         {
             _currentTransaction = await _context.Database.BeginTransactionAsync();
@@ -50,7 +48,6 @@ namespace HomeServicePlatform.Infrastructure.Persistence.Repositories.Common
             }
         }
 
-        // Dọn dẹp bộ nhớ khi dùng xong
         public void Dispose()
         {
             _context.Dispose();

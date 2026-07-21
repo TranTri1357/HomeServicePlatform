@@ -28,22 +28,18 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
             var page = request.Page < 1 ? 1 : request.Page;
             var pageSize = request.PageSize is < 1 or > 100 ? 20 : request.PageSize;
 
-            // Ví của thợ dùng chung bảng Wallet, khóa theo UserId (== TaskerProfileId).
             var wallet = await _context.Wallets
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.UserId == request.TaskerId, ct);
 
-            // Chưa có ví => chưa phát sinh thu nhập.
             if (wallet == null)
                 return ApiResponse<TaskerIncomeDto>.Success(new TaskerIncomeDto(), "Thợ chưa có ví, số dư 0.");
 
-            // Toàn bộ giao dịch của ví thợ (thu nhập, rút tiền, điều chỉnh...).
             var allQuery = _context.WalletTransactions
                 .AsNoTracking()
                 .Where(t => t.WalletId == wallet.WalletId);
 
             var totalCount = await allQuery.CountAsync(ct);
-            // "Tổng đã nhận" chỉ tính các giao dịch thu nhập (Earning).
             var totalEarned = await allQuery
                 .Where(t => t.Type == Earning)
                 .SumAsync(t => (decimal?)t.Amount, ct) ?? 0m;
@@ -63,7 +59,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
                 })
                 .ToListAsync(ct);
 
-            // Nạp giá gộp + tên dịch vụ chỉ cho các dòng thu nhập (Earning) có đơn.
             var bookingIds = txs.Where(t => t.Type == Earning && t.BookingId != null)
                                 .Select(t => t.BookingId!.Value)
                                 .Distinct()
@@ -85,8 +80,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
                         Summary = BuildSummary(g.Select(x => x.ServiceName))
                     });
 
-            // Số tiền hệ thống đã giữ cho mỗi đơn (Payment đã Paid: cọc/trả hết). Dùng để tách
-            // hoa hồng THẬT sàn khấu (held − net) khỏi tiền mặt thợ thu trực tiếp (gross − held).
             var heldByBooking = await _context.Payments
                 .AsNoTracking()
                 .Where(p => bookingIds.Contains(p.BookingId) && p.Status == (short)PaymentStatus.Paid)
@@ -97,7 +90,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
             var entries = new List<IncomeEntryDto>(txs.Count);
             foreach (var t in txs)
             {
-                // Chỉ dòng thu nhập (Earning) mới có phần bóc tách gộp → hoa hồng → thực nhận.
                 if (t.Type == Earning)
                 {
                     decimal gross = t.Net;
@@ -109,8 +101,8 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
                     }
 
                     decimal held = t.BookingId != null && heldByBooking.TryGetValue(t.BookingId.Value, out var h) ? h : 0m;
-                    decimal commission = Math.Max(0m, held - t.Net);   // hoa hồng thật (sàn khấu từ tiền giữ)
-                    decimal cash = Math.Max(0m, gross - held);         // tiền mặt thợ thu trực tiếp từ khách
+                    decimal commission = Math.Max(0m, held - t.Net);
+                    decimal cash = Math.Max(0m, gross - held);
 
                     entries.Add(new IncomeEntryDto(
                         t.TransactionId, t.Type, t.BookingId ?? 0, summary,
@@ -118,7 +110,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
                 }
                 else
                 {
-                    // Rút tiền / điều chỉnh / đền phí hủy...: không có gộp/hoa hồng, chỉ số tiền giao dịch.
                     entries.Add(new IncomeEntryDto(
                         t.TransactionId, t.Type, t.BookingId ?? 0, NonEarningLabel(t.Type, t.BookingId),
                         0m, 0m, t.Net, 0m, 0m, t.BalanceAfter, t.CreatedAt));
@@ -136,8 +127,6 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerIncome
             return ApiResponse<TaskerIncomeDto>.Success(dto, "Lấy lịch sử thu nhập của thợ thành công.");
         }
 
-        // Nhãn hiển thị cho các giao dịch không phải thu nhập. Adjustment có gắn đơn
-        // chính là khoản đền phí hủy khi khách hủy muộn.
         private static string NonEarningLabel(short type, long? bookingId) => type switch
         {
             Withdraw => "Rút tiền về tài khoản",

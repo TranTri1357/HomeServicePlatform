@@ -12,7 +12,7 @@ namespace HomeServicePlatform.Api.Controllers.Customer
 {
     [ApiController]
     [Route("api/customer/wallet")]
-    [Authorize(Roles = "Customer")] // 🛡️ Chỉ Khách hàng thao tác ví của chính mình
+    [Authorize(Roles = "Customer")]
     public class CustomerWalletController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -22,7 +22,6 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             _mediator = mediator;
         }
 
-        /// <summary>Lấy số dư ví + lịch sử giao dịch gần đây của khách đang đăng nhập.</summary>
         [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<WalletDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -36,7 +35,6 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>Nạp tiền vào ví (demo: cộng thẳng số dư).</summary>
         [HttpPost("topup")]
         [ProducesResponseType(typeof(ApiResponse<decimal>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -49,7 +47,7 @@ namespace HomeServicePlatform.Api.Controllers.Customer
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long customerId))
                 return Unauthorized();
 
-            command.CustomerId = customerId; // 🔒 Ép từ Token, chặn giả mạo
+            command.CustomerId = customerId;
             var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
         }

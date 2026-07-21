@@ -18,11 +18,11 @@ namespace HomeServicePlatform.Application.Modules.Commissions.Queries.GetAllComm
         decimal CommissionRate,
         DateTimeOffset EffectiveFrom,
         DateTimeOffset? EffectiveTo,
-        bool IsActive // Đơn vị nào có effective_to > hiện tại hoặc null thì là đang hoạt động
+        bool IsActive
     );
 
     public record GetAllCommissionsQuery(
-        string? SearchTerm, // Tìm theo tên thợ hoặc tên dịch vụ
+        string? SearchTerm,
         int PageIndex = 1,
         int PageSize = 10
     ) : IRequest<ApiResponse<PagedResult<CommissionDto>>>;

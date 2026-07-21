@@ -6,10 +6,6 @@ using HomeServicePlatform.Domain.Modules.Payments.Enum;
 
 namespace HomeServicePlatform.Infrastructure.ThirdPartyServices.Payments.Strategies
 {
-    /// <summary>
-    /// Cổng ZaloPay GIẢ LẬP (demo, không cần merchant credentials). Xem
-    /// <see cref="MockMoMoPaymentStrategy"/> để biết luồng hoạt động.
-    /// </summary>
     public class MockZaloPayPaymentStrategy : IPaymentStrategy
     {
         public PaymentMethod Method => PaymentMethod.ZaloPay;

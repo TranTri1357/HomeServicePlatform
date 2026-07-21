@@ -19,13 +19,11 @@ namespace HomeServicePlatform.Application.Modules.Booking.Queries.GetAllBookings
 
         public async Task<ApiResponse<PagedResult<BookingLookupDto>>> Handle(GetPagedBookingsQuery request, CancellationToken ct)
         {
-            // Join các bảng để kéo dữ liệu Tên khách hàng và Địa chỉ thi công ra Flat-DTO nhanh nhất
             var query = from b in _context.Bookings.AsNoTracking()
                         join u in _context.Users on b.CustomerId equals u.UserId
                         join a in _context.BookingAddresses on b.BookingId equals a.BookingId
                         select new { b, u, a };
 
-            // Tìm kiếm động
             if (request.CustomerId.HasValue)
                 query = query.Where(x => x.b.CustomerId == request.CustomerId.Value);
 

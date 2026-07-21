@@ -10,10 +10,8 @@ namespace HomeServicePlatform.Domain.Modules.Bookings.Interface
     public interface IBookingRepository
     {
         Task SaveAggregateAsync(Booking booking);
-        // Khai báo phương thức lấy Aggregate Root kèm nạp dữ liệu liên quan (Include)
         Task<Booking?> GetByIdAsync(long id);
 
-        // Khai báo phương thức lưu/cập nhật toàn bộ khối Aggregate Root
         Task UpdateAggregateAsync(Booking booking);
     }
 }

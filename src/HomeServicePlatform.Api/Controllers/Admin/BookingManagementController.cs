@@ -15,7 +15,7 @@ namespace HomeServicePlatform.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/bookings")]
-    [Authorize(Roles = "Admin,SuperAdmin")] // Đồng nhất quyền với các trang quản trị khác
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public class BookingManagementController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -47,14 +47,12 @@ namespace HomeServicePlatform.Api.Controllers.Admin
         {
             if (command == null) return BadRequest("Dữ liệu khởi tạo đơn hàng không được để trống.");
 
-            // 🛡️ 2. Xác thực Token cho lệnh tạo đơn
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long adminId))
             {
-                return Unauthorized(); // 🟢 Đã sửa dùng Cách B
+                return Unauthorized();
             }
 
-            // Gửi qua MediatR thực thi lưu xuống Database
             var result = await _mediator.Send(command);
             return StatusCode(StatusCodes.Status201Created, result);
         }
@@ -64,16 +62,12 @@ namespace HomeServicePlatform.Api.Controllers.Admin
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateStatus([FromRoute] long id, [FromBody] UpdateBookingStatusCommand command)
         {
-            // 🛡️ 3. Xác thực Token cho lệnh cập nhật trạng thái
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("uid");
             if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out long adminId))
             {
-                return Unauthorized(); // 🟢 Đã sửa dùng Cách B
+                return Unauthorized();
             }
 
-            // 🟢 ĐỒNG BỘ DOANH NGHIỆP: 
-            // - Bảo mật Id-Spoofing: Ép ID từ Route URL vào BookingId
-            // - Ghi nhận chính xác ai là người duyệt/hủy đơn vào trường ChangedBy từ Token ngầm
             var securedCommand = command with
             {
                 BookingId = id,

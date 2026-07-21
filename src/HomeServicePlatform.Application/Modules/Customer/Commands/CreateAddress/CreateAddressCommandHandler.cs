@@ -19,7 +19,7 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.CreateAddres
         public CreateAddressCommandHandler(IApplicationDbContext context)
         {
             _context = context;
-            _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326); // WGS84 (PostGIS)
+            _geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         }
 
         public async Task<ApiResponse<long>> Handle(CreateAddressCommand request, CancellationToken ct)
@@ -28,7 +28,6 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.CreateAddres
                 .Where(a => a.UserId == request.CustomerId)
                 .ToListAsync(ct);
 
-            // Địa chỉ đầu tiên luôn là mặc định; hoặc khi khách chủ động chọn mặc định.
             bool makeDefault = request.IsDefault || existing.Count == 0;
             if (makeDefault)
             {
@@ -53,7 +52,6 @@ namespace HomeServicePlatform.Application.Modules.Customer.Commands.CreateAddres
 
             _context.Addresses.Add(address);
 
-            // Thợ: địa chỉ mới trở thành mặc định → đồng bộ vị trí trên bản đồ.
             if (makeDefault)
                 await TaskerLocationSync.SyncFromDefaultAsync(_context, request.CustomerId, geom, ct);
 

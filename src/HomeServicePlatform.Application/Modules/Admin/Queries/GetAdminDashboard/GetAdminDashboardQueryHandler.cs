@@ -31,7 +31,6 @@ namespace HomeServicePlatform.Application.Modules.Admin.Queries.GetAdminDashboar
             var todayEndUtc = new DateTimeOffset(todayVn.AddDays(1), VnOffset).ToUniversalTime();
             var weekStartUtc = new DateTimeOffset(weekStartVn, VnOffset).ToUniversalTime();
 
-            // ── KPI ────────────────────────────────────────────────────────────
             var todayBookings = await _context.Bookings
                 .CountAsync(b => b.CreatedAt >= todayStartUtc && b.CreatedAt < todayEndUtc, ct);
 
@@ -54,13 +53,6 @@ namespace HomeServicePlatform.Application.Modules.Admin.Queries.GetAdminDashboar
                 .Where(b => b.Status == BookingStatus.Completed)
                 .SumAsync(b => (decimal?)b.FinalAmount, ct) ?? 0m;
 
-            // 💰 DOANH THU THẬT CỦA SÀN — khác hẳn hai con số GMV ở trên.
-            //    `totalRevenue` phía trên là SUM(Booking.FinalAmount), tức tổng tiền khách trả
-            //    (GMV); phần lớn khoản đó thuộc về thợ, sàn chỉ hưởng hoa hồng. Đề bài yêu cầu
-            //    báo cáo CẢ HAI ("tổng giao dịch, doanh thu") nên bổ sung chỉ số này.
-            //    Nguồn: ví doanh thu hệ thống — hoa hồng chốt ở CompleteWork và phí hủy ở
-            //    RefundExecutor đều đã ghi bút toán Commission vào đây, nên số liệu luôn khớp
-            //    số dư thật thay vì tính lại từ biểu phí (tránh đúng cái bẫy D1 ở dashboard thợ).
             var platformRevenueQuery = _context.WalletTransactions
                 .AsNoTracking()
                 .Where(t => t.Wallet.UserId == SystemAccounts.RevenueUserId
@@ -75,7 +67,6 @@ namespace HomeServicePlatform.Application.Modules.Admin.Queries.GetAdminDashboar
 
             var openDisputes = await _context.Disputes.CountAsync(d => d.Status == 0, ct);
 
-            // ── Doanh thu 7 ngày (gom theo ngày VN trong bộ nhớ) ────────────────
             var weekItems = await _context.Bookings
                 .Where(b => b.Status == BookingStatus.Completed && b.CreatedAt >= weekStartUtc)
                 .Select(b => new { b.CreatedAt, b.FinalAmount })
@@ -93,7 +84,6 @@ namespace HomeServicePlatform.Application.Modules.Admin.Queries.GetAdminDashboar
                 .Select(kv => new DailyRevenuePoint(kv.Key, kv.Value))
                 .ToList();
 
-            // ── Đơn theo trạng thái ─────────────────────────────────────────────
             var statusGroups = await _context.Bookings
                 .GroupBy(b => b.Status)
                 .Select(g => new { g.Key, Count = g.Count() })
@@ -103,7 +93,6 @@ namespace HomeServicePlatform.Application.Modules.Admin.Queries.GetAdminDashboar
                 .OrderBy(x => x.Status)
                 .ToList();
 
-            // ── 5 đơn gần nhất ──────────────────────────────────────────────────
             var recentBookings = await _context.Bookings
                 .OrderByDescending(b => b.CreatedAt)
                 .Take(5)

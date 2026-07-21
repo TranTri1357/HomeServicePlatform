@@ -23,7 +23,6 @@ namespace HomeServicePlatform.Application.Modules.Services.Public.Queries.GetSer
         public int? CategoryId { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }
-        /// <summary>Lọc dịch vụ có điểm đánh giá TB (của thợ) ≥ giá trị này (0–5).</summary>
         public decimal? MinRating { get; set; }
         public string? SortBy { get; set; }
 
