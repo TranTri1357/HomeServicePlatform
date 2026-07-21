@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using HomeServicePlatform.Application.Common.Exceptions;
 using HomeServicePlatform.Application.Common.Interfaces;
 using HomeServicePlatform.Application.Common.Responses;
+using HomeServicePlatform.Domain.Modules.Bookings.Enums;
 using MediatR;
 
 namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfile
@@ -30,7 +31,7 @@ namespace HomeServicePlatform.Application.Modules.Tasker.Queries.GetTaskerProfil
                                    Profile = tp,
                                    User = u,
                                    CompletedJobsCount = _context.BookingItems
-                                                                .Count(i => i.TaskerId == tp.TaskerProfileId && i.Status == 1)
+                                                                .Count(i => i.TaskerId == tp.TaskerProfileId && i.Booking.Status == BookingStatus.Completed)
                                };
 
             var data = await profileQuery.FirstOrDefaultAsync(cancellationToken);
